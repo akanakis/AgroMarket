@@ -1,0 +1,237 @@
+# AgroMarket FastAPI Backend
+
+A complete FastAPI backend with PostgreSQL database for the AgroMarket farm-to-table marketplace application.
+
+## 🚀 Features
+
+- **RESTful API** endpoints for all operations
+- **PostgreSQL** database with SQLAlchemy ORM
+- **CRUD Operations** for Users, Products, Orders, and Reviews
+- **Filtering & Search** capabilities
+- **Rating System** for products and orders
+- **CORS** enabled for React frontend
+
+## 📋 Prerequisites
+
+- Python 3.8+
+- PostgreSQL 12+
+- pip (Python package manager)
+
+## 🛠️ Installation
+
+### 1. Install PostgreSQL
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+sudo systemctl start postgresql
+```
+
+**macOS (with Homebrew):**
+```bash
+brew install postgresql
+brew services start postgresql
+```
+
+**Windows:**
+Download and install from [postgresql.org](https://www.postgresql.org/download/windows/)
+
+### 2. Create Database
+
+```bash
+# Login to PostgreSQL
+sudo -u postgres psql
+
+# Create database and user
+CREATE DATABASE agromarket;
+CREATE USER agrouser WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE agromarket TO agrouser;
+\q
+```
+
+### 3. Clone and Setup Backend
+
+```bash
+# Create project directory
+mkdir agromarket-backend
+cd agromarket-backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Linux/Mac:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 4. Configure Environment
+
+Create a `.env` file in the project root:
+
+```bash
+DATABASE_URL=postgresql://agrouser:your_password@localhost:5432/agromarket
+API_HOST=0.0.0.0
+API_PORT=8000
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+### 5. Initialize Database
+
+```bash
+# Run the seed script to create tables and add sample data
+python seed.py
+```
+
+### 6. Run the Server
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The API will be available at: `http://localhost:8000`
+
+API Documentation (Swagger UI): `http://localhost:8000/docs`
+
+## 📚 API Endpoints
+
+### Users
+- `POST /api/users/` - Create new user
+- `GET /api/users/{user_id}` - Get user by ID
+- `GET /api/users/` - List all users
+
+### Products
+- `POST /api/products/` - Create new product
+- `GET /api/products/` - List products (with filters)
+- `GET /api/products/{product_id}` - Get product by ID
+- `PUT /api/products/{product_id}` - Update product
+- `DELETE /api/products/{product_id}` - Delete product
+
+### Orders
+- `POST /api/orders/` - Create new order
+- `GET /api/orders/` - List all orders
+- `GET /api/orders/{order_id}` - Get order by ID
+- `PUT /api/orders/{order_id}/rating` - Rate an order
+
+### Reviews
+- `POST /api/reviews/` - Create new review
+- `GET /api/reviews/product/{product_id}` - Get reviews for product
+
+## 🔌 Connecting to React Frontend
+
+Update your React service files to use the FastAPI backend:
+
+```typescript
+// Example: fetchProducts
+const fetchProducts = async () => {
+  const response = await fetch('http://localhost:8000/api/products/');
+  const data = await response.json();
+  return data;
+};
+
+// Example: createProduct
+const createProduct = async (product) => {
+  const response = await fetch('http://localhost:8000/api/products/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(product)
+  });
+  return await response.json();
+};
+```
+
+## 🐳 Docker Setup (Optional)
+
+Create a `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: agromarket
+      POSTGRES_USER: agrouser
+      POSTGRES_PASSWORD: your_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://agrouser:your_password@db:5432/agromarket
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+```
+
+Run with: `docker-compose up`
+
+## 🧪 Testing
+
+Test the API using curl:
+
+```bash
+# Get all products
+curl http://localhost:8000/api/products/
+
+# Create a product
+curl -X POST http://localhost:8000/api/products/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Product",
+    "description": "A test product",
+    "price": 10.0,
+    "unit": "kg",
+    "category": "Vegetables",
+    "location": "Athens",
+    "seller_id": 1,
+    "seller_name": "Test Seller",
+    "image_url": "https://example.com/image.jpg",
+    "organic": true,
+    "harvest_date": "2024-01-01",
+    "max_quantity": 100
+  }'
+```
+
+## 📁 Project Structure
+
+```
+agromarket-backend/
+├── main.py           # FastAPI application and routes
+├── models.py         # SQLAlchemy database models
+├── schemas.py        # Pydantic schemas for validation
+├── database.py       # Database connection and session
+├── seed.py          # Database seeding script
+├── requirements.txt  # Python dependencies
+├── .env             # Environment variables
+└── README.md        # This file
+```
+
+## 🔐 Security Notes
+
+- Change default passwords in production
+- Use environment variables for sensitive data
+- Enable HTTPS in production
+- Implement authentication/authorization (JWT tokens recommended)
+- Validate and sanitize all user inputs
+
+## 🤝 Contributing
+
+Feel free to submit issues and enhancement requests!
+
+## 📄 License
+
+MIT License

@@ -1,0 +1,6 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy
+pydantic
+python-dotenv
+alembic==1.12.1
