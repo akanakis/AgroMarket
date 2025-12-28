@@ -1,0 +1,5 @@
+{
+  "name": "AgroMarket",
+  "description": "A local agricultural marketplace connecting farmers directly with consumers. Features AI-enhanced product descriptions and recipe suggestions.",
+  "requestFramePermissions": []
+}
