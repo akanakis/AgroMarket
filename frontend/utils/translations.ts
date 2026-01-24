@@ -253,6 +253,9 @@ export const translations = {
   fr: {
     appTitle: "AgroMarket",
     tagline: "Frais de la terre grecque à votre table.",
+    activeListings: "Annonces actives",
+    orders: "Commandes",
+    myProducts: "Mes Produits",
     buyBtn: "Je veux acheter",
     buyDesc: "Oubliez le supermarché. Connectez-vous directement avec les agriculteurs locaux.",
     sellBtn: "Je veux vendre",

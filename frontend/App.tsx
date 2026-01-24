@@ -11,6 +11,7 @@ import ProductDetails from './components/ProductDetails';
 import ProducerProfile from './components/ProducerProfile';
 import { translations, Language } from './utils/translations';
 import * as API from './services/apiService';
+import LanguageSelector from './components/LanguageSelector';
 
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>('LANDING');
@@ -24,11 +25,11 @@ const App: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isBuyerOrdersOpen, setIsBuyerOrdersOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Navigation State
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedProducer, setSelectedProducer] = useState<string | null>(null);
-  
+
   // Current user ID (stored in localStorage for demo)
   const [currentUserId, setCurrentUserId] = useState<number | null>(() => {
     const stored = localStorage.getItem('agromarket_user_id');
@@ -169,9 +170,9 @@ const App: React.FC = () => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        return prev.map(item => 
-          item.id === product.id 
-            ? { ...item, quantity: item.quantity + quantity } 
+        return prev.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
@@ -220,7 +221,7 @@ const App: React.FC = () => {
       const createdUser = await API.createUser(userData);
       setCurrentUserId(createdUser.id);
       localStorage.setItem('agromarket_user_id', createdUser.id.toString());
-      
+
       setUserProfile(profile);
       setView('APP');
     } catch (error) {
@@ -274,11 +275,7 @@ const App: React.FC = () => {
     }
   };
 
-  const toggleLanguage = () => {
-    const langs: Language[] = ['en', 'el', 'de', 'fr'];
-    const currentIndex = langs.indexOf(lang);
-    setLang(langs[(currentIndex + 1) % langs.length]);
-  };
+
 
   // Navigation Handlers
   const handleViewProduct = (product: Product) => {
@@ -304,12 +301,14 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#fcfdfa] flex flex-col items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute top-4 right-4 z-50">
-           <button onClick={toggleLanguage} className="flex items-center gap-1 text-sm font-semibold text-stone-600 bg-white/50 px-3 py-1 rounded-full hover:bg-white border border-transparent hover:border-stone-200 transition-all">
-             <Globe size={16} /> {lang.toUpperCase()}
-           </button>
+          <LanguageSelector
+            lang={lang}
+            setLang={setLang}
+            buttonClassName="text-sm font-semibold text-stone-600 bg-white/50 px-3 py-1.5 rounded-full hover:bg-white border border-transparent hover:border-stone-200 shadow-sm"
+          />
         </div>
         <div className="absolute top-0 left-0 w-full h-1/2 bg-green-50/50 -skew-y-3 transform origin-top-left -z-10"></div>
-        
+
         <div className="text-center max-w-2xl mx-auto mb-12">
           <div className="flex justify-center mb-6">
             <div className="bg-green-100 p-4 rounded-full shadow-lg shadow-green-100">
@@ -323,7 +322,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 w-full max-w-3xl">
-          <button 
+          <button
             onClick={() => handleRoleSelect(UserRole.BUYER)}
             className="group relative bg-white border-2 border-green-100 hover:border-green-500 p-8 rounded-3xl text-left transition-all hover:shadow-xl hover:-translate-y-1"
           >
@@ -334,7 +333,7 @@ const App: React.FC = () => {
             <p className="text-stone-500">{t.buyDesc}</p>
           </button>
 
-          <button 
+          <button
             onClick={() => handleRoleSelect(UserRole.PRODUCER)}
             className="group relative bg-white border-2 border-amber-100 hover:border-amber-500 p-8 rounded-3xl text-left transition-all hover:shadow-xl hover:-translate-y-1"
           >
@@ -351,8 +350,8 @@ const App: React.FC = () => {
 
   if (view === 'REGISTER' && role) {
     return (
-      <Registration 
-        role={role} 
+      <Registration
+        role={role}
         onComplete={handleRegistrationComplete}
         onBack={() => setView('LANDING')}
       />
@@ -365,41 +364,43 @@ const App: React.FC = () => {
       {/* Navbar */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-stone-100">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-           <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setView('LANDING'); }}>
-             <Sprout className="text-green-600" size={24} />
-             <span className="font-bold text-xl text-stone-800 tracking-tight">{t.appTitle}</span>
-           </div>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setView('LANDING'); }}>
+            <Sprout className="text-green-600" size={24} />
+            <span className="font-bold text-xl text-stone-800 tracking-tight">{t.appTitle}</span>
+          </div>
 
-           <div className="flex items-center gap-4">
-             <button onClick={toggleLanguage} className="flex items-center gap-1 text-sm font-semibold text-stone-600 bg-stone-50 px-3 py-1.5 rounded-full hover:bg-stone-100 transition-all">
-               <Globe size={16} /> {lang.toUpperCase()}
-             </button>
+          <div className="flex items-center gap-4">
+            <LanguageSelector
+              lang={lang}
+              setLang={setLang}
+              buttonClassName="text-sm font-semibold text-stone-600 bg-stone-50 px-3 py-1.5 rounded-full hover:bg-stone-100 border border-transparent"
+            />
 
-             {role === UserRole.BUYER && (
-                <button 
-                  onClick={() => setIsBuyerOrdersOpen(true)}
-                  className="flex items-center gap-2 text-sm text-stone-600 hover:text-green-700 bg-white hover:bg-green-50 px-3 py-1.5 rounded-full border border-stone-200 transition-all"
-                >
-                  <Package size={16} />
-                  <span className="hidden sm:inline">{t.myOrders}</span>
-                </button>
-             )}
+            {role === UserRole.BUYER && (
+              <button
+                onClick={() => setIsBuyerOrdersOpen(true)}
+                className="flex items-center gap-2 text-sm text-stone-600 hover:text-green-700 bg-white hover:bg-green-50 px-3 py-1.5 rounded-full border border-stone-200 transition-all"
+              >
+                <Package size={16} />
+                <span className="hidden sm:inline">{t.myOrders}</span>
+              </button>
+            )}
 
-             {userProfile && (
-                <div className="hidden md:flex items-center gap-2 text-sm text-stone-600 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
-                  <UserCircle size={16} />
-                  <span>{t.viewingAs}: <span className="font-semibold text-stone-800">{userProfile.name}</span></span>
-                </div>
-             )}
-             
-             <button 
-               onClick={switchRole}
-               className="flex items-center gap-2 text-sm font-medium text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg transition-colors"
-             >
-               <ArrowLeftRight size={16} />
-               <span className="hidden sm:inline">{t.switchRole}</span>
-             </button>
-           </div>
+            {userProfile && (
+              <div className="hidden md:flex items-center gap-2 text-sm text-stone-600 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
+                <UserCircle size={16} />
+                <span>{t.viewingAs}: <span className="font-semibold text-stone-800">{userProfile.name}</span></span>
+              </div>
+            )}
+
+            <button
+              onClick={switchRole}
+              className="flex items-center gap-2 text-sm font-medium text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg transition-colors"
+            >
+              <ArrowLeftRight size={16} />
+              <span className="hidden sm:inline">{t.switchRole}</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -410,7 +411,7 @@ const App: React.FC = () => {
             <div className="text-stone-400">Loading...</div>
           </div>
         ) : view === 'PRODUCT_DETAILS' && selectedProduct ? (
-          <ProductDetails 
+          <ProductDetails
             product={selectedProduct}
             onBack={handleBackToMarket}
             onAddToCart={handleAddToCart}
@@ -418,7 +419,7 @@ const App: React.FC = () => {
             lang={lang}
           />
         ) : view === 'PRODUCER_PROFILE' && selectedProducer ? (
-          <ProducerProfile 
+          <ProducerProfile
             sellerName={selectedProducer}
             allProducts={products}
             onBack={handleBackToMarket}
@@ -427,20 +428,20 @@ const App: React.FC = () => {
             lang={lang}
           />
         ) : role === UserRole.BUYER ? (
-          <Marketplace 
-            products={products} 
-            addToCart={handleAddToCart} 
+          <Marketplace
+            products={products}
+            addToCart={handleAddToCart}
             cart={cart}
             removeFromCart={handleRemoveFromCart}
             updateCartQuantity={handleUpdateCartQuantity}
-            lang={lang} 
+            lang={lang}
             onCheckout={() => setIsCheckoutOpen(true)}
             onViewProduct={handleViewProduct}
             onViewProducer={handleViewProducer}
           />
         ) : (
-          <ProducerDashboard 
-            products={products.filter(p => currentUserId && p.sellerName === userProfile?.name)} 
+          <ProducerDashboard
+            products={products.filter(p => currentUserId && p.sellerName === userProfile?.name)}
             orders={orders}
             onAddProduct={handleAddProduct}
             onUpdateProduct={handleUpdateProduct}
@@ -458,8 +459,8 @@ const App: React.FC = () => {
       </footer>
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
-      
-      <CheckoutModal 
+
+      <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
         onPlaceOrder={handlePlaceOrder}
@@ -467,8 +468,8 @@ const App: React.FC = () => {
         items={cart}
         lang={lang}
       />
-      
-      <OrdersModal 
+
+      <OrdersModal
         isOpen={isBuyerOrdersOpen}
         onClose={() => setIsBuyerOrdersOpen(false)}
         orders={orders.filter(o => o.customerName === (userProfile?.name || 'Guest'))}
