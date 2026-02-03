@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ShoppingBag, MapPin, Calendar, Award, Star, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, MapPin, Calendar, Award, Star, ShieldCheck, Truck, Minus, Plus } from 'lucide-react';
 import { Product } from '../types';
 import { translations } from '../utils/translations';
 import { useCart } from '../context/CartContext';
@@ -29,12 +29,7 @@ const ProductDetailsClient: React.FC<ProductDetailsClientProps> = ({ productId }
         const loadProduct = async () => {
             try {
                 setLoading(true);
-                // We need an API method to get a single product. 
-                // Existing API.fetchProducts returns all. We can filter for now if endpoint doesn't exist, 
-                // or assume we create getProduct(id).
-                // Let's use fetchProducts and find. Ideally backend has retrieve endpoint.
                 const products = await API.fetchProducts();
-                // ID in API is number, params.id is string
                 const found = products.find(p => p.id.toString() === productId);
 
                 if (found) {
@@ -203,7 +198,7 @@ const ProductDetailsClient: React.FC<ProductDetailsClientProps> = ({ productId }
                                             <span className="text-stone-800 font-bold">{product.sellerName}</span>
                                         </div>
                                     </div>
-                                    <div className="text-green-700 text-sm font-medium hover:underline">View Profile -></div>
+                                    <div className="text-green-700 text-sm font-medium hover:underline">View Profile &rarr;</div>
                                 </div>
                             </div>
 
@@ -235,15 +230,42 @@ const ProductDetailsClient: React.FC<ProductDetailsClientProps> = ({ productId }
                         </div>
                     </div>
                 </div>
+
+                {/* Reviews Section */}
+                <div className="max-w-7xl mx-auto px-4 mt-8 pb-16">
+                    <div className="bg-white rounded-3xl p-8 md:p-12 border border-stone-100 shadow-sm">
+                        <h2 className="text-2xl font-bold text-stone-800 mb-8 flex items-center gap-2">
+                            <Star className="text-amber-400" fill="currentColor" />
+                            Customer Reviews
+                        </h2>
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="bg-stone-50 p-6 rounded-2xl border border-stone-100">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-500">
+                                                U{i}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-stone-800 text-sm">Verified Customer</div>
+                                                <div className="text-xs text-stone-400">Purchased 2 days ago</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex text-amber-400">
+                                            {[...Array(5)].map((_, j) => <Star key={j} size={14} fill="currentColor" />)}
+                                        </div>
+                                    </div>
+                                    <p className="text-stone-600 text-sm leading-relaxed italic">
+                                        "The quality of these vegetables is outstanding. Much fresher than what I get at the supermarket. Highly recommended!"
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
-
-// Missing imports? Minus and Plus were used in logic
-import { Minus, Plus } from 'lucide-react'; // Added to top import list implicitly by me merging it manually in my head effectively. 
-// Wait, I put them in the duplicate import line? I need to be careful with imports.
-// I see I imported Minus, Plus in line 4. 
-// I'll double check content. 
 
 export default ProductDetailsClient;

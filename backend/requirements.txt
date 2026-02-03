@@ -5,3 +5,4 @@ pydantic
 python-dotenv
 alembic==1.12.1
 psycopg2-binary
+Faker

@@ -31,7 +31,7 @@ FRONTEND_PID=$!
 cd ..
 
 echo "--> App running!"
-echo "    Frontend: http://localhost:5173"
+echo "    Frontend: http://localhost:3000"
 echo "    Backend: http://localhost:8000/docs"
 echo "    (Using local SQLite database)"
 echo "Press CTRL+C to stop."

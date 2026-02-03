@@ -4,6 +4,9 @@ export const translations = {
   en: {
     appTitle: "AgroMarket",
     tagline: "Fresh from the Greek land to your table.",
+    activeListings: "Active Listings",
+    orders: "Orders",
+    myProducts: "My Products",
     buyBtn: "I want to Buy",
     buyDesc: "Skip the supermarket. Connect directly with local farmers instantly.",
     sellBtn: "I want to Sell",
@@ -87,6 +90,9 @@ export const translations = {
   el: {
     appTitle: "AgroMarket",
     tagline: "Φρέσκα από την ελληνική γη στο τραπέζι σας.",
+    activeListings: "Ενεργές Αγγελίες",
+    orders: "Παραγγελίες",
+    myProducts: "Τα Προϊόντα μου",
     buyBtn: "Θέλω να Αγοράσω",
     buyDesc: "Ξεχάστε το σούπερ μάρκετ. Συνδεθείτε άμεσα με ντόπιους παραγωγούς.",
     sellBtn: "Θέλω να Πουλήσω",
@@ -170,6 +176,9 @@ export const translations = {
   de: {
     appTitle: "AgroMarket",
     tagline: "Frisch vom griechischen Land auf Ihren Tisch.",
+    activeListings: "Aktive Angebote",
+    orders: "Bestellungen",
+    myProducts: "Meine Produkte",
     buyBtn: "Ich möchte kaufen",
     buyDesc: "Vergessen Sie den Supermarkt. Verbinden Sie sich direkt mit lokalen Bauern.",
     sellBtn: "Ich möchte verkaufen",

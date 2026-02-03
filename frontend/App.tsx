@@ -440,23 +440,17 @@ const App: React.FC = () => {
             onViewProducer={handleViewProducer}
           />
         ) : (
-          <ProducerDashboard
-            products={products.filter(p => currentUserId && p.sellerName === userProfile?.name)}
-            orders={orders}
-            onAddProduct={handleAddProduct}
-            onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
-            lang={lang}
-          />
-        )}
-      </main>
+          <div className="p-8 text-center">Producer Dashboard moved to /dashboard</div>
+        )
+        }
+      </main >
 
       {/* Footer */}
-      <footer className="bg-white border-t border-stone-100 py-8 mt-12">
+      < footer className="bg-white border-t border-stone-100 py-8 mt-12" >
         <div className="max-w-7xl mx-auto px-4 text-center text-stone-400 text-sm">
           <p>&copy; {new Date().getFullYear()} {t.appTitle}. Supporting local agriculture.</p>
         </div>
-      </footer>
+      </footer >
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
 
@@ -476,7 +470,7 @@ const App: React.FC = () => {
         onRateOrder={handleRateOrder}
         lang={lang}
       />
-    </div>
+    </div >
   );
 };
 

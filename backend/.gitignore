@@ -1,13 +1,37 @@
 # Python
 __pycache__/
-__pycache__
 *.pyc
-.env
+*.pyo
+*.pyd
+.Python
+env/
 venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesize
 
-# Node
-node_modules/
-dist/
+# Local Env Files
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite3
 
 # OS
 .DS_Store
+
+# Editor
+.vscode/
+.idea/

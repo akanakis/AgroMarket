@@ -31,7 +31,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = (selectedRole: UserRole) => {
         setRole(selectedRole);
         if (selectedRole === UserRole.BUYER) {
-            setUserProfile({ name: 'Guest', role: UserRole.BUYER, location: 'Greece' });
+            const guestId = 4; // Maria K. from seed
+            setCurrentUserId(guestId);
+            setUserProfile({ name: 'Maria K.', role: UserRole.BUYER, location: 'Athens, Attica' });
+            localStorage.setItem('agromarket_user_id', guestId.toString());
+        } else if (selectedRole === UserRole.PRODUCER) {
+            const producerId = 1; // Papadopoulos Estate from seed
+            setCurrentUserId(producerId);
+            setUserProfile({ name: 'Papadopoulos Estate', role: UserRole.PRODUCER, location: 'Kalamata' });
+            localStorage.setItem('agromarket_user_id', producerId.toString());
         }
     };
 

@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import ProducerProfileClient from '../../components/ProducerProfileClient';
+import ProducerProfileClient from '@/components/ProducerProfileClient';
 
 interface Props {
     params: { id: string }; // In routing we used sellerName which is encoded string
