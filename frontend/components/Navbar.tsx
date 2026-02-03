@@ -1,16 +1,33 @@
 'use client';
 
 import React from 'react';
-import { Sprout, ArrowLeftRight, Package, UserCircle } from 'lucide-react';
+import { Sprout, LogOut, Package, UserCircle, Store, User } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserRole } from '../types';
 import LanguageSelector from './LanguageSelector';
 
 export default function Navbar() {
-    const { role, userProfile, logout } = useAuth();
+    const { role, userProfile, logout, login } = useAuth();
     const { lang, setLang } = useLanguage();
+    const router = useRouter();
+
+    const handleSellerLogin = () => {
+        login(UserRole.PRODUCER);
+        router.push('/dashboard');
+    };
+
+    const handleBuyerLogin = () => {
+        login(UserRole.BUYER);
+        // Stays on the same page (Marketplace)
+    };
+
+    const handleLogout = () => {
+        logout();
+        router.push('/');
+    };
 
     return (
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-stone-100">
@@ -43,13 +60,32 @@ export default function Navbar() {
                         </div>
                     )}
 
+                    {!role && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleBuyerLogin}
+                                className="flex items-center gap-2 text-sm font-bold text-stone-600 hover:text-green-700 px-3 py-2 rounded-lg transition-colors"
+                            >
+                                <User size={18} />
+                                <span className="hidden sm:inline">Login</span>
+                            </button>
+                            <button
+                                onClick={handleSellerLogin}
+                                className="flex items-center gap-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 px-4 py-2 rounded-full shadow-md transition-colors"
+                            >
+                                <Store size={18} />
+                                <span className="hidden sm:inline">Login as Seller</span>
+                            </button>
+                        </div>
+                    )}
+
                     {role && (
                         <button
-                            onClick={() => logout()} // Or switch role
-                            className="flex items-center gap-2 text-sm font-medium text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg transition-colors"
+                            onClick={handleLogout}
+                            className="flex items-center gap-2 text-sm font-medium text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
                         >
-                            <ArrowLeftRight size={16} />
-                            <span className="hidden sm:inline">Switch Role</span>
+                            <LogOut size={16} />
+                            <span className="hidden sm:inline">Logout</span>
                         </button>
                     )}
                 </div>

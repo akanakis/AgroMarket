@@ -14,7 +14,11 @@ DATABASE_URL = os.getenv(
 )
 
 # Create SQLAlchemy engine
-engine = create_engine(DATABASE_URL)
+connect_args = {}
+if "sqlite" in DATABASE_URL:
+    connect_args = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

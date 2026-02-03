@@ -28,7 +28,7 @@ export const enhanceProductDescription = async (
       contents: prompt,
     });
 
-    return response.text.trim();
+    return response.text?.trim() || rawDescription;
   } catch (error) {
     console.error("Gemini API Error:", error);
     return rawDescription; // Fallback to original
@@ -49,7 +49,7 @@ export const generateRecipeSuggestion = async (productName: string): Promise<str
       contents: prompt,
     });
 
-    return response.text.trim();
+    return response.text?.trim() || "No recipe found.";
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "Could not generate recipe at this time.";

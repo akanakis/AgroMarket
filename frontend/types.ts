@@ -51,7 +51,7 @@ export interface Order {
   date: string;
   customerName: string;
   rating?: number; // 1-5
-  status: 'Pending' | 'Completed';
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Completed' | 'Cancelled';
 }
 
 export type AppView = 'LANDING' | 'REGISTER' | 'APP' | 'PRODUCT_DETAILS' | 'PRODUCER_PROFILE';

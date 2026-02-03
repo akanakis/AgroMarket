@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import ProductDetailsClient from '../../components/ProductDetailsClient';
+import ProductDetailsClient from '@/components/ProductDetailsClient';
 // import { Metadata } from 'next';
 
 interface Props {
