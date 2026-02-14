@@ -1,54 +1,92 @@
-# AgroMarket
+# AgroMarket - Farm-to-Table Marketplace
 
-AgroMarket is a web platform connecting local farmers directly with buyers. It allows producers to list their fresh produce and buyers to purchase high-quality local goods.
+**Fresh, Local, Organic.**
 
-## Features
+AgroMarket is a comprehensive platform connecting local farmers directly with consumers, promoting sustainable agriculture and healthy eating. It features a modern web frontend, a robust Python backend, and a brand-new React Native mobile application for on-the-go access.
 
-- **For Buyers**:
-  - Browse local products (vegetables, fruits, dairy, etc.).
-  - Filter by category, organic status, and price.
-  - Add items to cart and place orders.
-  - Track orders (coming soon).
+## 📱 Mobile App Features (New!)
 
-- **For Sellers (Producers)**:
-  - Dashboard to manage product listings.
-  - View total revenue and active listings.
-  - Manage incoming orders.
+The mobile application brings the full marketplace experience to your iOS and Android devices:
 
-## Getting Started
+*   **Dual User Roles**: Seamless experience for both **Producers** (farmers) and **Consumers**.
+*   **Rich Marketplace**:
+    *   Browse fresh produce with **Category Filters** (Vegetables 🥬, Fruits 🍎, Dairy 🥚, Wine 🍷, and more).
+    *   **Advanced Filtering**: Sort by Price, Newest, Best Rated. Filter by Price Range and Organic Status.
+    *   **Search**: Find products by name, location, or producer.
+*   **Product Management (Producers)**:
+    *   Add new products with details like price, unit, organic certification, and images.
+    *   "My Listings" dashboard to manage active products.
+*   **Order Management**:
+    *   **Track Orders**: View order history with status updates (Processing, Shipped, Completed).
+    *   **Detailed Views**: Expand orders to see individual items.
+    *   **Product Reviews**: Leave star ratings and comments for specific products on completed orders.
+*   **Internationalization 🌍**: Use the app in your preferred language:
+    *   🇬🇧 English
+    *   🇬🇷 Greek (Ελληνικά)
+    *   🇩🇪 German (Deutsch)
+    *   🇫🇷 French (Français)
+*   **User Profiles**: Manage profile settings, switch language, and view role-specific stats.
+
+## 🛠️ Technology Stack
+
+*   **Mobile**: React Native (Expo), TypeScript, React Navigation, Lucide Icons.
+*   **Backend**: Python (FastAPI), SQLite, Uvicorn.
+*   **Web Frontend**: React.js (legacy/web platform).
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- Docker (optional, for backend database)
+*   **Node.js** (v18+)
+*   **Python** (3.9+)
+*   **Expo Go** app on your mobile device (iOS/Android) or a simulator.
 
-### Installation & Running
+### 1. Backend Setup
 
-#### Frontend
+Navigate to the backend directory and activate the virtual environment:
 
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+*Note: Ensure your mobile device is on the same network as your computer to access the local backend.*
 
-#### Backend
+### 2. Mobile App Setup
 
-The backend is containerized. To run it:
+Navigate to the mobile directory:
 
-1. Navigate to the backend directory (or root):
-   ```bash
-   cd backend
-   ```
-2. Build and start the containers:
-   ```bash
-   docker-compose up --build
-   ```
+```bash
+cd mobile
+npm install
+npx expo start --clear
+```
+
+Scan the QR code with the **Expo Go** app on your phone, or press `i` to run in the iOS Simulator / `a` for Android Emulator.
+
+### 3. Web Frontend Setup
+
+Navigate to the frontend directory:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view the web app.
+
+## 📂 Project Structure
+
+*   `mobile/`: React Native application code.
+    *   `src/screens/`: UI screens (Marketplace, Orders, AddProduct, etc.).
+    *   `src/components/`: Reusable UI components (ProductCard, ReviewModal, etc.).
+    *   `src/utils/translations.ts`: Localization strings for EN/EL/DE/FR.
+*   `backend/`: FastAPI server and database.
+*   `frontend/`: React web application.
+
+## 📝 License
+
+This project is licensed under the MIT License.
