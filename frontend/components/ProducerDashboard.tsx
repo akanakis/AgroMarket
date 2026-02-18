@@ -14,6 +14,7 @@ interface ProducerDashboardProps {
   userProfile: any;
   onAddProduct: () => void;
   onDeleteProduct: (id: string) => void;
+  onUpdateStatus: (orderId: string, status: string) => void;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -23,7 +24,8 @@ export default function ProducerDashboard({
   orders,
   userProfile,
   onAddProduct,
-  onDeleteProduct
+  onDeleteProduct,
+  onUpdateStatus
 }: ProducerDashboardProps) {
   const { lang } = useLanguage();
   const t = translations[lang];
@@ -182,6 +184,67 @@ export default function ProducerDashboard({
               </PieChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      {/* Orders Management */}
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden mb-8">
+        <div className="p-6 border-b border-stone-100">
+          <h3 className="text-xl font-bold text-stone-800">{t.orders}</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-stone-50 text-stone-500 text-sm font-semibold uppercase">
+              <tr>
+                <th className="px-6 py-4">Order ID</th>
+                <th className="px-6 py-4">Customer</th>
+                <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4">Total</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {orders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-stone-500">
+                    No orders found.
+                  </td>
+                </tr>
+              ) : (
+                orders.map(order => (
+                  <tr key={order.id} className="hover:bg-stone-50/50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-stone-600">#{order.id.slice(0, 8)}</td>
+                    <td className="px-6 py-4 font-medium text-stone-800">{order.customerName}</td>
+                    <td className="px-6 py-4 text-stone-600">{new Date(order.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 font-bold text-stone-800">${order.total.toFixed(2)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase
+                        ${order.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                          order.status === 'Processing' ? 'bg-blue-100 text-blue-700' :
+                            order.status === 'Shipped' ? 'bg-amber-100 text-amber-700' :
+                              'bg-stone-100 text-stone-700'}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <select
+                        className="bg-white border border-stone-200 text-stone-700 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"
+                        value={order.status}
+                        onChange={(e) => onUpdateStatus(order.id, e.target.value)}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

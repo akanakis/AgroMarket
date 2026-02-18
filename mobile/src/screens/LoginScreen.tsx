@@ -8,7 +8,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sprout, ShoppingBag, Store, Globe } from 'lucide-react-native';
+import { Sprout, ShoppingBag, Store } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations, Language } from '../utils/translations';
@@ -79,6 +79,52 @@ export default function LoginScreen() {
                     <Text style={[styles.cardTitle, styles.sellerText]}>{t.sellBtn}</Text>
                     <Text style={[styles.cardDesc, styles.sellerDescText]}>{t.sellDesc}</Text>
                 </TouchableOpacity>
+            </View>
+
+            {/* Quick Login for Testing */}
+            <View style={styles.quickLoginContainer}>
+                <Text style={styles.quickLoginLabel}>🧪 Quick Test Access</Text>
+                <View style={styles.quickLoginRow}>
+                    <TouchableOpacity
+                        style={styles.quickBtn}
+                        onPress={async () => {
+                            try {
+                                // Dynamic fetch of test users
+                                // In a real app we'd load this on mount, but inline is fine for dev tool
+                                const data = await fetch('http://localhost:8000/api/debug/test-users').then(r => r.json());
+                                if (data.buyer) {
+                                    login(UserRole.BUYER, data.buyer);
+                                } else {
+                                    alert('Test Buyer not found. Run seed.py!');
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                // Fallback to hardcoded just in case
+                                login(UserRole.BUYER, { id: 12, name: 'Test Buyer', location: 'Athens' });
+                            }
+                        }}
+                    >
+                        <Text style={styles.quickBtnText}>Test Buyer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.quickBtn, styles.quickBtnSeller]}
+                        onPress={async () => {
+                            try {
+                                const data = await fetch('http://localhost:8000/api/debug/test-users').then(r => r.json());
+                                if (data.producer) {
+                                    login(UserRole.PRODUCER, data.producer);
+                                } else {
+                                    alert('Test Producer not found. Run seed.py!');
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                login(UserRole.PRODUCER, { id: 11, name: 'Test Producer', location: 'Test Farm' });
+                            }
+                        }}
+                    >
+                        <Text style={[styles.quickBtnText, styles.quickBtnTextSeller]}>Test Seller</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Footer */}
@@ -219,5 +265,42 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#a8a29e',
         fontWeight: '500',
+    },
+    quickLoginContainer: {
+        marginTop: 24,
+        paddingHorizontal: 24,
+    },
+    quickLoginLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#a8a29e',
+        textTransform: 'uppercase',
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    quickLoginRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    quickBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e7e5e4',
+        alignItems: 'center',
+    },
+    quickBtnSeller: {
+        backgroundColor: '#16a34a',
+        borderColor: '#16a34a',
+    },
+    quickBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#44403c',
+    },
+    quickBtnTextSeller: {
+        color: '#ffffff',
     },
 });

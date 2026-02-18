@@ -7,51 +7,43 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   location: string;
-  // Producer specific
-  farmName?: string;
-  certifications?: string[]; // e.g., 'PDO', 'Organic', 'ISO'
-  // Buyer specific
-  preferences?: string[]; // e.g., 'Vegetables', 'Dairy'
 }
 
-export interface Product {
-  id: string;
+export interface ProductAPI {
+  id: number;
   name: string;
   description: string;
   price: number;
-  unit: string; // e.g., 'kg', 'bunch', 'piece'
+  unit: string;
   category: string;
   location: string;
-  sellerName: string;
-  imageUrl: string;
+  seller_id: number;
+  seller_name: string;
+  image_url: string;
   organic: boolean;
-  harvestDate: string; // YYYY-MM-DD
-  expirationDate?: string; // YYYY-MM-DD
-  maxQuantity: number;
+  harvest_date: string;
+  expiration_date: string | null;
+  max_quantity: number;
   rating: number;
-  reviewCount: number;
+  review_count: number;
+  created_at: string;
 }
 
-export interface Review {
-  id: string;
-  author: string;
-  rating: number;
-  comment: string;
-  date: string;
-}
-
-export interface CartItem extends Product {
+export interface OrderItemAPI {
+  id: number;
+  order_id: number;
+  product_id: number;
   quantity: number;
+  price: number;
 }
 
-export interface Order {
-  id: string;
-  items: CartItem[];
+export interface OrderAPI {
+  id: number;
+  customer_id: number | null;
+  customer_name: string;
   total: number;
-  date: string;
-  customerName: string;
-  rating?: number; // 1-5
-  status: 'Pending' | 'Processing' | 'Shipped' | 'Completed' | 'Cancelled';
+  status: string;
+  rating: number | null;
+  created_at: string;
+  items: OrderItemAPI[];
 }
-
-export type AppView = 'LANDING' | 'REGISTER' | 'APP' | 'PRODUCT_DETAILS' | 'PRODUCER_PROFILE';

@@ -9,7 +9,7 @@ interface AuthContextType {
     setUserProfile: (profile: UserProfile | null) => void;
     currentUserId: number | null;
     setCurrentUserId: (id: number | null) => void;
-    login: (role: UserRole) => void;
+    login: (role: UserRole, specificUser?: { id: number; name: string; location: string }) => void;
     logout: () => void;
 }
 
@@ -42,20 +42,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loadUser();
     }, []);
 
-    const login = async (selectedRole: UserRole) => {
+    const login = async (selectedRole: UserRole, specificUser?: { id: number; name: string; location: string }) => {
         setRole(selectedRole);
-        if (selectedRole === UserRole.BUYER) {
-            const guestId = 4;
-            setCurrentUserId(guestId);
-            setUserProfile({ name: 'Maria K.', role: UserRole.BUYER, location: 'Athens, Attica' });
-            await AsyncStorage.setItem('agromarket_user_id', guestId.toString());
-            await AsyncStorage.setItem('agromarket_user_role', UserRole.BUYER);
+        let userId = 0;
+        let profile: UserProfile | null = null;
+
+        if (specificUser) {
+            userId = specificUser.id;
+            profile = { name: specificUser.name, role: selectedRole, location: specificUser.location };
+        } else if (selectedRole === UserRole.BUYER) {
+            userId = 4; // Default guest
+            profile = { name: 'Maria K.', role: UserRole.BUYER, location: 'Athens, Attica' };
         } else if (selectedRole === UserRole.PRODUCER) {
-            const producerId = 1;
-            setCurrentUserId(producerId);
-            setUserProfile({ name: 'Papadopoulos Estate', role: UserRole.PRODUCER, location: 'Kalamata' });
-            await AsyncStorage.setItem('agromarket_user_id', producerId.toString());
-            await AsyncStorage.setItem('agromarket_user_role', UserRole.PRODUCER);
+            userId = 1; // Default producer
+            profile = { name: 'Papadopoulos Estate', role: UserRole.PRODUCER, location: 'Kalamata' };
+        }
+
+        if (profile && userId) {
+            setCurrentUserId(userId);
+            setUserProfile(profile);
+            await AsyncStorage.setItem('agromarket_user_id', userId.toString());
+            await AsyncStorage.setItem('agromarket_user_role', selectedRole);
         }
     };
 

@@ -17,6 +17,7 @@ import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import ProducerProfileScreen from '../screens/ProducerProfileScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import OrdersScreen from '../screens/OrdersScreen';
+import OrderTrackerScreen from '../screens/OrderTrackerScreen';
 import CartScreen from '../screens/CartScreen';
 import AddProductScreen from '../screens/AddProductScreen';
 import CartBadge from '../components/CartBadge';
@@ -55,6 +56,20 @@ function DashboardStack() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="DashboardMain" component={DashboardScreen} />
             <Stack.Screen name="AddProduct" component={AddProductScreen} />
+        </Stack.Navigator>
+    );
+}
+
+// Orders Stack
+function OrdersStack() {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="OrdersMain" component={OrdersScreen} />
+            <Stack.Screen
+                name="OrderTracker"
+                component={OrderTrackerScreen}
+                options={{ headerShown: false }}
+            />
         </Stack.Navigator>
     );
 }
@@ -132,7 +147,7 @@ function MainTabs() {
 
                 <Tab.Screen
                     name="OrdersTab"
-                    component={OrdersScreen}
+                    component={OrdersStack}
                     options={{
                         title: t.orders,
                         headerShown: false,

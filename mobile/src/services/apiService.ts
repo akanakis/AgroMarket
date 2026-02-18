@@ -189,8 +189,19 @@ export const createOrder = async (order: {
     });
 };
 
+
 export const fetchOrders = async (): Promise<OrderAPI[]> => {
     return apiCall<OrderAPI[]>('/api/orders/');
+};
+
+export const fetchSellerOrders = async (sellerId: number): Promise<OrderAPI[]> => {
+    return apiCall<OrderAPI[]>(`/api/orders/seller/${sellerId}`);
+};
+
+export const updateOrderStatus = async (orderId: number, status: string): Promise<OrderAPI> => {
+    return apiCall<OrderAPI>(`/api/orders/${orderId}/status?status=${status}`, {
+        method: 'PUT',
+    });
 };
 
 export const rateOrder = async (orderId: number, rating: number): Promise<void> => {
@@ -223,4 +234,18 @@ export const createReview = async (review: {
 
 export const fetchProductReviews = async (productId: number): Promise<ReviewAPI[]> => {
     return apiCall<ReviewAPI[]>(`/api/reviews/product/${productId}`);
+};
+
+// ==================== UTILS ====================
+export const refundOrder = async (orderId: number) => {
+    return apiCall<{ message: string, new_status: string }>(`/api/orders/${orderId}/refund`, {
+        method: 'POST',
+    });
+};
+
+export const fetchTestUsers = async () => {
+    return apiCall<{
+        producer: { id: number; name: string; location: string } | null;
+        buyer: { id: number; name: string; location: string } | null;
+    }>('/api/debug/test-users');
 };
