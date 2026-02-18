@@ -25,7 +25,12 @@ interface EnrichedOrder extends Omit<API.OrderAPI, 'items'> {
     items: EnrichedOrderItem[];
 }
 
+import { useNavigation } from '@react-navigation/native';
+
+// ...
+
 export default function OrdersScreen() {
+    const navigation = useNavigation();
     const { userProfile, currentUserId } = useAuth();
     const { lang } = useLanguage();
     const t = translations[lang];
@@ -137,13 +142,13 @@ export default function OrdersScreen() {
                 renderItem={({ item: order }) => {
                     const isExpanded = expandedOrder === order.id;
                     return (
-                        <View style={styles.orderCard}>
+                        <TouchableOpacity
+                            style={styles.orderCard}
+                            onPress={() => (navigation as any).navigate('OrderTracker', { orderId: order.id })}
+                            activeOpacity={0.9}
+                        >
                             {/* Order Header */}
-                            <TouchableOpacity
-                                style={styles.orderHeader}
-                                onPress={() => toggleExpand(order.id)}
-                                activeOpacity={0.7}
-                            >
+                            <View style={styles.orderHeader}>
                                 <View style={styles.orderIdRow}>
                                     <Package size={16} color="#16a34a" />
                                     <Text style={styles.orderId}>#{order.id}</Text>
@@ -154,13 +159,11 @@ export default function OrdersScreen() {
                                             {order.status}
                                         </Text>
                                     </View>
-                                    {isExpanded ? (
-                                        <ChevronUp size={18} color="#a8a29e" />
-                                    ) : (
+                                    <View>
                                         <ChevronDown size={18} color="#a8a29e" />
-                                    )}
+                                    </View>
                                 </View>
-                            </TouchableOpacity>
+                            </View>
 
                             {/* Order summary */}
                             <View style={styles.orderBody}>
@@ -181,44 +184,7 @@ export default function OrdersScreen() {
                                     </Text>
                                 </View>
                             </View>
-
-                            {/* Expanded: Product Items */}
-                            {isExpanded && (
-                                <View style={styles.itemsSection}>
-                                    <View style={styles.itemsDivider} />
-                                    {order.items.map((item) => {
-                                        const isReviewed = reviewedItems.has(`${item.product_id}`);
-                                        return (
-                                            <View key={item.id} style={styles.itemRow}>
-                                                <View style={styles.itemInfo}>
-                                                    <Text style={styles.itemName} numberOfLines={1}>
-                                                        {item.productName}
-                                                    </Text>
-                                                    <Text style={styles.itemDetails}>
-                                                        {t.quantity}: {item.quantity} · €{item.price.toFixed(2)}
-                                                    </Text>
-                                                </View>
-                                                {isReviewed ? (
-                                                    <View style={styles.reviewedBadge}>
-                                                        <Star size={12} color="#16a34a" fill="#16a34a" />
-                                                        <Text style={styles.reviewedText}>{t.reviewed}</Text>
-                                                    </View>
-                                                ) : (
-                                                    <TouchableOpacity
-                                                        style={styles.reviewBtn}
-                                                        onPress={() => openReviewModal(item.product_id, item.productName)}
-                                                        activeOpacity={0.7}
-                                                    >
-                                                        <MessageSquare size={14} color="#f59e0b" />
-                                                        <Text style={styles.reviewBtnText}>{t.reviewProduct}</Text>
-                                                    </TouchableOpacity>
-                                                )}
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            )}
-                        </View>
+                        </TouchableOpacity>
                     );
                 }}
                 ListEmptyComponent={

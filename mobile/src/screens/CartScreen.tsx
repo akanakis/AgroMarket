@@ -480,6 +480,7 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         borderWidth: 2,
         borderColor: '#e7e5e4',
+        flexWrap: 'wrap',
     },
     paymentOptionActive: {
         borderColor: '#16a34a',

@@ -45,12 +45,13 @@ export default function Navbar() {
                     />
 
                     {role === UserRole.BUYER && (
-                        <button
+                        <Link
+                            href="/orders"
                             className="flex items-center gap-2 text-sm text-stone-600 hover:text-green-700 bg-white hover:bg-green-50 px-3 py-1.5 rounded-full border border-stone-200 transition-all"
                         >
                             <Package size={16} />
                             <span className="hidden sm:inline">My Orders</span>
-                        </button>
+                        </Link>
                     )}
 
                     {userProfile && (

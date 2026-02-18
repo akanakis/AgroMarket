@@ -31,7 +31,7 @@ export default function DashboardScreen({ navigation }: any) {
         try {
             const [productsData, ordersData] = await Promise.all([
                 API.fetchProducts(),
-                API.fetchOrders(),
+                currentUserId ? API.fetchSellerOrders(currentUserId) : API.fetchOrders(),
             ]);
 
             const myProducts = productsData
@@ -62,11 +62,13 @@ export default function DashboardScreen({ navigation }: any) {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [userProfile?.name]);
+    }, [userProfile?.name, currentUserId]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (userProfile?.name) {
+            loadData();
+        }
+    }, [loadData, userProfile?.name]);
 
     const handleDeleteProduct = async (id: string) => {
         Alert.alert(t.deleteProduct, t.deleteConfirm, [
@@ -84,6 +86,49 @@ export default function DashboardScreen({ navigation }: any) {
                 },
             },
         ]);
+    };
+
+    const handleUpdateStatus = (orderId: number, currentStatus: string) => {
+        const statuses = ['Pending', 'Processing', 'Shipped', 'Completed', 'Cancelled'];
+
+        // Add Refund option if Cancelled
+        const options = [...statuses.map(status => ({
+            text: status,
+            onPress: async () => {
+                if (status === currentStatus) return;
+                try {
+                    await API.updateOrderStatus(orderId, status);
+                    loadData();
+                } catch (err: any) {
+                    Alert.alert('Error', 'Failed to update status');
+                }
+            },
+            style: (status === 'Cancelled' ? 'destructive' : 'default') as 'destructive' | 'default'
+        }))];
+
+        if (currentStatus === 'Cancelled') {
+            options.push({
+                text: 'Issue Refund 💸',
+                onPress: async () => {
+                    try {
+                        await API.refundOrder(orderId);
+                        Alert.alert('Success', 'Refund issued successfully');
+                        loadData();
+                    } catch (err: any) {
+                        Alert.alert('Error', err.message || 'Failed to refund order');
+                    }
+                },
+                style: 'destructive'
+            });
+        }
+
+        options.push({ text: 'Cancel', style: 'cancel' as 'cancel' });
+
+        Alert.alert(
+            'Update Status',
+            'Select new status or action',
+            options
+        );
     };
 
     const onRefresh = () => {
@@ -156,18 +201,28 @@ export default function DashboardScreen({ navigation }: any) {
                             <>
                                 <Text style={styles.sectionTitle}>{t.recentOrders}</Text>
                                 {orders.slice(0, 5).map((order) => (
-                                    <View key={order.id} style={styles.orderCard}>
+                                    <TouchableOpacity
+                                        key={order.id}
+                                        style={styles.orderCard}
+                                        onPress={() => (navigation as any).navigate('OrderTracker', { orderId: order.id })}
+                                    >
                                         <View style={styles.orderHeader}>
                                             <Text style={styles.orderId}>#{order.id}</Text>
-                                            <View style={[styles.statusBadge, getStatusStyle(order.status)]}>
-                                                <Text style={[styles.statusText, getStatusTextStyle(order.status)]}>{order.status}</Text>
-                                            </View>
+                                            <TouchableOpacity
+                                                onPress={() => handleUpdateStatus(order.id, order.status)}
+                                                style={[styles.statusBadge, getStatusStyle(order.status)]}
+                                            >
+                                                <Text style={[styles.statusText, getStatusTextStyle(order.status)]}>
+                                                    {order.status}
+                                                </Text>
+                                            </TouchableOpacity>
                                         </View>
                                         <View style={styles.orderDetails}>
                                             <Text style={styles.orderCustomer}>{order.customer_name}</Text>
                                             <Text style={styles.orderTotal}>€{order.total.toFixed(2)}</Text>
                                         </View>
-                                    </View>
+                                        <Text style={{ fontSize: 10, color: '#a8a29e', marginTop: 4 }}>Tap status to update • Tap card to view details</Text>
+                                    </TouchableOpacity>
                                 ))}
                             </>
                         )}

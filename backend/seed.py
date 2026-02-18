@@ -184,8 +184,81 @@ def seed_database():
         db.add_all(reviews)
         db.commit()
         
+        # 4. Create Explicit Test Data for Demo
+        print("🧪 Creating Test Data...")
+        
+        # Test Producer
+        test_producer = models.User(
+            name="Test Producer",
+            role="PRODUCER",
+            location="Test Farm",
+            farm_name="Test Farm",
+            certifications=json.dumps(["Organic"]), 
+            created_at=datetime.now()
+        )
+        db.add(test_producer)
+        db.commit()
+        db.refresh(test_producer)
+        
+        # Test Buyer
+        test_buyer = models.User(
+            name="Test Buyer",
+            role="BUYER",
+            location="Athens",
+            preferences=json.dumps(["Fruits"]),
+            created_at=datetime.now()
+        )
+        db.add(test_buyer)
+        db.commit()
+        db.refresh(test_buyer)
+        
+        # Test Product
+        test_product = models.Product(
+            name="Test Oranges",
+            description="Fresh test oranges",
+            price=5.0,
+            unit="kg",
+            category="Fruits",
+            location="Test Farm",
+            seller_id=test_producer.id,
+            seller_name=test_producer.name,
+            image_url="https://images.unsplash.com/photo-1582285552433-28564db597c5?auto=format&fit=crop&q=80&w=800",
+            organic=True,
+            harvest_date=datetime.now().isoformat(),
+            max_quantity=100,
+            rating=5,
+            review_count=1
+        )
+        db.add(test_product)
+        db.commit()
+        db.refresh(test_product)
+
+        # Create orders in different states for Test Buyer
+        test_statuses = ["Pending", "Processing", "Shipped", "Completed", "Cancelled"]
+        for i, status in enumerate(test_statuses):
+            order = models.Order(
+                customer_id=test_buyer.id,
+                customer_name=test_buyer.name,
+                total=10.0 * (i + 1),
+                status=status,
+                created_at=datetime.now() - timedelta(days=i),
+            )
+            db.add(order)
+            db.commit()
+            db.refresh(order)
+            
+            op = models.OrderItem(
+                order_id=order.id,
+                product_id=test_product.id,
+                quantity=i + 1,
+                price=10.0
+            )
+            db.add(op)
+            
+        db.commit()
+
         print(f"   - Created {len(reviews)} Reviews")
-        print("✅ Database seeded successfully with DYNAMIC data!")
+        print("✅ Database seeded successfully with DYNAMIC and TEST data!")
 
     except Exception as e:
         print(f"❌ Error seeding database: {e}")

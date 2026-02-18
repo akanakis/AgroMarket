@@ -54,7 +54,9 @@ const DashboardClient: React.FC = () => {
             setLoading(true);
             const [productsData, ordersData] = await Promise.all([
                 API.fetchProducts(),
-                API.fetchOrders()
+                role === UserRole.PRODUCER && currentUserId
+                    ? API.fetchSellerOrders(currentUserId)
+                    : API.fetchOrders() // For buyers
             ]);
 
             // Filter products for this producer
@@ -80,8 +82,6 @@ const DashboardClient: React.FC = () => {
 
             setProducts(myProducts);
 
-            // Filter orders? API might return all orders or filtered on backend.
-            // Assuming frontend filtering for now as per previous implementation logic
             const myOrders = ordersData.map(o => ({
                 id: o.id.toString(),
                 items: [], // Fetch items details if needed
@@ -97,6 +97,16 @@ const DashboardClient: React.FC = () => {
             console.error('Error loading dashboard data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+        try {
+            await API.updateOrderStatus(parseInt(orderId), newStatus);
+            loadData(); // Refresh to show new status
+        } catch (error) {
+            console.error('Failed to update status:', error);
+            alert('Failed to update status');
         }
     };
 
@@ -118,6 +128,7 @@ const DashboardClient: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#fcfdfa]">
+            {/* Navbar is inside layout usually, but here manually placed */}
             <Navbar />
             {role === UserRole.PRODUCER ? (
                 <ProducerDashboard
@@ -126,6 +137,7 @@ const DashboardClient: React.FC = () => {
                     userProfile={userProfile}
                     onAddProduct={() => setIsAddModalOpen(true)}
                     onDeleteProduct={handleDeleteProduct}
+                    onUpdateStatus={handleUpdateStatus}
                 />
             ) : (
                 <div className="max-w-7xl mx-auto px-4 py-8">

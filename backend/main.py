@@ -1,9 +1,11 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from typing import List
-import models, schemas, database
-from database import engine, get_db
+from datetime import datetime, timedelta
+from typing import List, Optional
+import models, schemas
+from database import SessionLocal, engine
+from tax_service import TaxService
+from fastapi.responses import Response, StreamingResponse
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -155,6 +157,74 @@ def rate_order(order_id: int, rating: int, db: Session = Depends(get_db)):
         db.commit()
     
     return {"message": "Order rated successfully"}
+
+@app.put("/api/orders/{order_id}/status")
+def update_order_status(order_id: int, status: str, db: Session = Depends(get_db)):
+    valid_statuses = ["Pending", "Processing", "Shipped", "Completed", "Cancelled"]
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {valid_statuses}")
+    
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order.status = status
+    db.commit()
+    db.refresh(order)
+    return order
+
+@app.get("/api/orders/seller/{seller_id}", response_model=List[schemas.Order])
+def list_seller_orders(seller_id: int, db: Session = Depends(get_db)):
+    """
+    Get all orders that contain at least one product from the given seller.
+    """
+    # Join Order -> OrderItem -> Product
+    orders = db.query(models.Order).join(models.OrderItem).join(models.Product).filter(
+        models.Product.seller_id == seller_id
+    ).distinct().all()
+    
+    return orders
+
+# Tax & Refund Endpoints
+@app.get("/api/orders/{order_id}/invoice")
+def get_order_invoice(order_id: int, db: Session = Depends(get_db)):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    tax_service = TaxService()
+    pdf_buffer = tax_service.generate_invoice_pdf(order)
+    
+    return StreamingResponse(
+        pdf_buffer, 
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=invoice_{order_id}.pdf"}
+    )
+
+@app.post("/api/orders/{order_id}/refund")
+def refund_order(order_id: int, db: Session = Depends(get_db)):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order.status == "Refunded":
+        raise HTTPException(status_code=400, detail="Order already refunded")
+
+    # Mock Refund Logic (In real app, call Stripe/PayPal API here)
+    order.status = "Refunded"
+    db.commit()
+    return {"message": "Refund issued successfully", "new_status": "Refunded"}
+
+# Helper to find Test Users for App Login
+@app.get("/api/debug/test-users")
+def get_test_users(db: Session = Depends(get_db)):
+    producer = db.query(models.User).filter(models.User.name == "Test Producer").first()
+    buyer = db.query(models.User).filter(models.User.name == "Test Buyer").first()
+    
+    return {
+        "producer": {"id": producer.id, "name": producer.name, "location": producer.location} if producer else None,
+        "buyer": {"id": buyer.id, "name": buyer.name, "location": buyer.location} if buyer else None
+    }
 
 # ==================== REVIEWS ====================
 @app.post("/api/reviews/", response_model=schemas.Review)
