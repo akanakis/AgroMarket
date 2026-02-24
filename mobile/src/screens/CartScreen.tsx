@@ -18,43 +18,58 @@ import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
 import * as API from '../services/apiService';
+import PaymentSimulatorModal from '../components/PaymentSimulatorModal';
 
 export default function CartScreen({ navigation }: any) {
-    const { userProfile, currentUserId } = useAuth();
+    const { user, accessToken } = useAuth();
     const { cart, removeFromCart, updateCartQuantity, clearCart, cartTotal } = useCart();
     const { lang } = useLanguage();
     const t = translations[lang];
 
     const [showCheckout, setShowCheckout] = useState(false);
-    const [fullName, setFullName] = useState(userProfile?.name || '');
+    const [fullName, setFullName] = useState(user?.name || '');
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card'>('cod');
     const [orderPlaced, setOrderPlaced] = useState(false);
+    const [completedOrderId, setCompletedOrderId] = useState<number | null>(null);
+    const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
 
-    const handlePlaceOrder = async () => {
-        if (!fullName.trim() || !address.trim() || !phone.trim()) {
-            Alert.alert(t.missingInfo, t.missingInfoMsg);
-            return;
-        }
-
+    const submitOrderToBackend = async () => {
         try {
-            await API.createOrder({
+            if (!accessToken) throw new Error("Not authenticated");
+            const newOrder = await API.createOrder({
+                // @ts-ignore
                 customer_name: fullName,
                 total: cartTotal,
                 status: 'Pending',
-                customer_id: currentUserId || undefined,
+                customer_id: user?.id || undefined,
                 items: cart.map((item) => ({
                     product_id: parseInt(item.id),
                     quantity: item.quantity,
                     price: item.price,
                 })),
-            });
+            }, accessToken);
 
             clearCart();
+            setCompletedOrderId(newOrder.id);
+            setIsPaymentModalVisible(false);
             setOrderPlaced(true);
         } catch (err: any) {
             Alert.alert(t.error, err.message);
+        }
+    };
+
+    const handlePlaceOrder = () => {
+        if (!fullName.trim() || !address.trim() || !phone.trim()) {
+            Alert.alert(t.missingInfo, t.missingInfoMsg);
+            return;
+        }
+
+        if (paymentMethod === 'card') {
+            setIsPaymentModalVisible(true);
+        } else {
+            submitOrderToBackend();
         }
     };
 
@@ -65,6 +80,23 @@ export default function CartScreen({ navigation }: any) {
                     <Check size={40} color="#16a34a" />
                 </View>
                 <Text style={styles.successTitle}>{t.orderSuccess}</Text>
+
+                {completedOrderId && (
+                    <TouchableOpacity
+                        style={styles.trackOrderBtn}
+                        onPress={() => {
+                            setOrderPlaced(false);
+                            setShowCheckout(false);
+                            navigation.replace('OrdersTab', {
+                                screen: 'OrderTracker',
+                                params: { orderId: completedOrderId }
+                            });
+                        }}
+                    >
+                        <Text style={styles.trackOrderText}>Track Order</Text>
+                    </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                     style={styles.backToShopBtn}
                     onPress={() => {
@@ -185,6 +217,13 @@ export default function CartScreen({ navigation }: any) {
 
                     <View style={{ height: 40 }} />
                 </ScrollView>
+
+                <PaymentSimulatorModal
+                    visible={isPaymentModalVisible}
+                    amount={cartTotal}
+                    onClose={() => setIsPaymentModalVisible(false)}
+                    onSuccess={submitOrderToBackend}
+                />
             </KeyboardAvoidingView>
         );
     }
@@ -545,13 +584,31 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     backToShopBtn: {
-        backgroundColor: '#16a34a',
+        backgroundColor: '#fafaf5',
+        borderWidth: 2,
+        borderColor: '#16a34a',
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 12,
         marginTop: 8,
+        width: '100%',
+        alignItems: 'center',
     },
     backToShopText: {
+        color: '#16a34a',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    trackOrderBtn: {
+        backgroundColor: '#16a34a',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginTop: 24,
+        width: '100%',
+        alignItems: 'center',
+    },
+    trackOrderText: {
         color: '#ffffff',
         fontSize: 15,
         fontWeight: '700',

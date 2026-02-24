@@ -54,14 +54,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    console.log('1. Starting login API call...');
     const tokenRes = await API.login(email, password);
+    console.log('2. Login token received:', tokenRes);
+    console.log('3. Fetching user profile with getMe...');
     const profile = await API.getMe(tokenRes.access_token);
+    console.log('4. Profile received:', profile);
     setAccessToken(tokenRes.access_token);
     setUser(profile);
+    console.log('5. Setting securely stored token...');
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokenRes.access_token);
+    console.log('6. Processing refresh token if any...');
     if (tokenRes.refresh_token) {
+      console.log('Refresh token is present, storing...');
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokenRes.refresh_token);
     }
+    console.log('7. Finalizing login step complete.');
   }, []);
 
   const register = useCallback(async (payload: API.RegisterPayload) => {
