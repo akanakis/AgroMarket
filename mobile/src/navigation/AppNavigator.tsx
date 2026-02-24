@@ -75,7 +75,8 @@ function OrdersStack() {
 }
 
 function MainTabs() {
-    const { role } = useAuth();
+    const { user } = useAuth();
+    const role = user?.role;
     const { cart } = useCart();
     const { lang } = useLanguage();
     const t = translations[lang];
@@ -176,12 +177,12 @@ function MainTabs() {
 const RootStack = createNativeStackNavigator();
 
 export default function AppNavigator() {
-    const { role } = useAuth();
+    const { user } = useAuth();
 
     return (
         <NavigationContainer>
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                {role ? (
+                {user ? (
                     <RootStack.Screen name="Main" component={MainTabs} />
                 ) : (
                     <RootStack.Screen name="Login" component={LoginScreen} />
