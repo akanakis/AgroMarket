@@ -18,7 +18,7 @@ const CATEGORIES = ['All', 'Vegetables', 'Fruits', 'Dairy & Eggs', 'Honey & Jams
 const MarketplaceClient: React.FC = () => {
     const { cart, addToCart, removeFromCart, updateCartQuantity, cartTotal, clearCart } = useCart();
     const { lang } = useLanguage();
-    const { userProfile, currentUserId } = useAuth();
+    const { user, accessToken } = useAuth();
     const router = useRouter();
 
     const [products, setProducts] = useState<Product[]>([]);
@@ -112,12 +112,12 @@ const MarketplaceClient: React.FC = () => {
     };
 
     const handlePlaceOrder = async () => {
+        if (!accessToken) {
+            alert('Please log in to place an order');
+            return;
+        }
         try {
             const orderData = {
-                customer_name: userProfile?.name || 'Guest',
-                total: cartTotal,
-                status: 'Pending',
-                customer_id: currentUserId || undefined,
                 items: cart.map(item => ({
                     product_id: parseInt(item.id),
                     quantity: item.quantity,
@@ -125,7 +125,7 @@ const MarketplaceClient: React.FC = () => {
                 }))
             };
 
-            await API.createOrder(orderData);
+            await API.createOrder(orderData, accessToken);
             clearCart();
 
             setIsCheckoutOpen(false);

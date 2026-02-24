@@ -4,12 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react'; // Kept only what might be used, though ProducerDashboard now handles icons
 import ProducerDashboard from './ProducerDashboard';
 import BuyerOrderTracker from './BuyerOrderTracker';
-import { Product, Order, UserRole } from '../types';
+import { Product, Order } from '../types';
 import AddProductModal from './AddProductModal';
 import { translations } from '../utils/translations';
-// import ProductStats from './ProductStats'; // Assuming this exists or is inline? 
-// Checking ProducerDashboard.tsx content... it seems inline or I missed it. 
-// I'll inline standard dashboard logic.
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import Navbar from './Navbar';
@@ -17,7 +14,7 @@ import * as API from '../services/apiService';
 import { useRouter } from 'next/navigation';
 
 const DashboardClient: React.FC = () => {
-    const { role, userProfile, currentUserId } = useAuth();
+    const { user, accessToken } = useAuth();
     const { lang } = useLanguage();
     const router = useRouter();
     const t = translations[lang];
@@ -32,36 +29,32 @@ const DashboardClient: React.FC = () => {
 
     // Redirect if not authorized
     useEffect(() => {
-        if (!role) {
-            router.push('/'); // Redirect to landing if no role
-        } else if (role === UserRole.BUYER) {
-            // Maybe redirect to marketplace or show buyer dashboard?
-            // For now, let's allow buyer to have a simple dashboard or redirect.
-            // The task implies migrating ProducerDashboard.
+        if (!user) {
+            router.push('/');
         }
-    }, [role, router]);
+    }, [user, router]);
 
     useEffect(() => {
-        if (currentUserId && role === UserRole.PRODUCER) {
+        if (user?.id && user?.role === 'PRODUCER') {
             loadData();
         } else {
             setLoading(false);
         }
-    }, [currentUserId, role]);
+    }, [user?.id, user?.role]);
 
     const loadData = async () => {
         try {
             setLoading(true);
             const [productsData, ordersData] = await Promise.all([
                 API.fetchProducts(),
-                role === UserRole.PRODUCER && currentUserId
-                    ? API.fetchSellerOrders(currentUserId)
-                    : API.fetchOrders() // For buyers
+                user?.role === 'PRODUCER' && user?.id
+                    ? API.fetchSellerOrders(user.id, accessToken!)
+                    : API.fetchMyOrders(accessToken!)
             ]);
 
             // Filter products for this producer
             const myProducts = productsData
-                .filter(p => p.seller_name === userProfile?.name) // Ideally filter by ID if available or correct logical check
+                .filter(p => p.seller_id === user?.id)
                 .map(p => ({
                     id: p.id.toString(),
                     name: p.name,
@@ -102,7 +95,7 @@ const DashboardClient: React.FC = () => {
 
     const handleUpdateStatus = async (orderId: string, newStatus: string) => {
         try {
-            await API.updateOrderStatus(parseInt(orderId), newStatus);
+            await API.updateOrderStatus(parseInt(orderId), newStatus, accessToken!);
             loadData(); // Refresh to show new status
         } catch (error) {
             console.error('Failed to update status:', error);
@@ -119,7 +112,7 @@ const DashboardClient: React.FC = () => {
 
     const handleDeleteProduct = async (id: string) => {
         if (window.confirm('Delete this product?')) {
-            await API.deleteProduct(parseInt(id));
+            await API.deleteProduct(parseInt(id), accessToken!);
             loadData();
         }
     };
@@ -130,11 +123,11 @@ const DashboardClient: React.FC = () => {
         <div className="min-h-screen bg-[#fcfdfa]">
             {/* Navbar is inside layout usually, but here manually placed */}
             <Navbar />
-            {role === UserRole.PRODUCER ? (
+            {user?.role === 'PRODUCER' ? (
                 <ProducerDashboard
                     products={products}
                     orders={orders}
-                    userProfile={userProfile}
+                    userProfile={user}
                     onAddProduct={() => setIsAddModalOpen(true)}
                     onDeleteProduct={handleDeleteProduct}
                     onUpdateStatus={handleUpdateStatus}
@@ -152,8 +145,8 @@ const DashboardClient: React.FC = () => {
                     loadData();
                     setIsAddModalOpen(false);
                 }}
-                sellerId={currentUserId || 0}
-                sellerName={userProfile?.name || 'Unknown'}
+                sellerId={user?.id || 0}
+                sellerName={user?.name || 'Unknown'}
             />
         </div>
     );

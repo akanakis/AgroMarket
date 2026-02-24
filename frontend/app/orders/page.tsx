@@ -9,28 +9,23 @@ import { OrderAPI } from '@/types';
 
 export default function OrdersPage() {
     const router = useRouter();
-    const { userProfile, role } = useAuth();
+    const { user, accessToken } = useAuth();
     const [orders, setOrders] = useState<OrderAPI[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (role && role !== 'BUYER') {
+        if (user && user.role !== 'BUYER') {
             router.push('/');
             return;
         }
-        loadOrders();
-    }, [role]);
+        if (accessToken) loadOrders();
+    }, [user, accessToken]);
 
     const loadOrders = async () => {
         try {
-            const data = await API.fetchOrders();
-            // Filter strictly for current buyer locally if API return all (depends on endpoint behavior)
-            // Assuming API returns all, we filter by name or ID if authenticated. 
-            // Better: backend filters, but for now matching mobile logic
-            const myOrders = data.filter(o => o.customer_name === userProfile?.name);
-            // Sort by date desc
-            myOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            setOrders(myOrders);
+            const data = await API.fetchMyOrders(accessToken!);
+            data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setOrders(data);
         } catch (err) {
             console.error(err);
         } finally {

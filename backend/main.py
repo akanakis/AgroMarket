@@ -1,263 +1,96 @@
-from fastapi import FastAPI, HTTPException, Depends
+import logging
+import sys
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, timedelta
-from typing import List, Optional
-import models, schemas
-from database import SessionLocal, engine
-from tax_service import TaxService
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
-# Create database tables
-models.Base.metadata.create_all(bind=engine)
+from core.config import settings
+from database import SessionLocal
+from api.v1.router import router as api_v1_router
 
-app = FastAPI(title="AgroMarket API", version="1.0.0")
+# ==================== LOGGING ====================
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format='{"time": "%(asctime)s", "level": "%(levelname)s", "module": "%(module)s", "message": "%(message)s"}',
+    datefmt="%Y-%m-%dT%H:%M:%SZ",
+)
+logger = logging.getLogger(__name__)
 
-# CORS Configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow mobile app + web frontend
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# ==================== RATE LIMITER ====================
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+
+
+# ==================== LIFESPAN ====================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("AgroMarket API starting up")
+    yield
+    logger.info("AgroMarket API shutting down")
+
+
+# ==================== APP ====================
+app = FastAPI(
+    title="AgroMarket API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
-# ==================== USERS ====================
-@app.post("/api/users/", response_model=schemas.UserProfile)
-def create_user(user: schemas.UserProfileCreate, db: Session = Depends(get_db)):
-    db_user = models.User(**user.dict())
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+# ==================== MIDDLEWARE ====================
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-@app.get("/api/users/{user_id}", response_model=schemas.UserProfile)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins_list,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
-@app.get("/api/users/", response_model=List[schemas.UserProfile])
-def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    users = db.query(models.User).offset(skip).limit(limit).all()
-    return users
+# ==================== EXCEPTION HANDLERS ====================
 
-# ==================== PRODUCTS ====================
-@app.post("/api/products/", response_model=schemas.Product)
-def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
-    db_product = models.Product(**product.dict())
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
-
-@app.get("/api/products/", response_model=List[schemas.Product])
-def list_products(
-    skip: int = 0, 
-    limit: int = 100, 
-    category: str = None,
-    organic_only: bool = False,
-    db: Session = Depends(get_db)
-):
-    query = db.query(models.Product)
-    
-    if category:
-        query = query.filter(models.Product.category == category)
-    if organic_only:
-        query = query.filter(models.Product.organic == True)
-    
-    products = query.offset(skip).limit(limit).all()
-    return products
-
-@app.get("/api/products/{product_id}", response_model=schemas.Product)
-def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
-
-@app.put("/api/products/{product_id}", response_model=schemas.Product)
-def update_product(product_id: int, product: schemas.ProductUpdate, db: Session = Depends(get_db)):
-    db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not db_product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    for key, value in product.dict(exclude_unset=True).items():
-        setattr(db_product, key, value)
-    
-    db.commit()
-    db.refresh(db_product)
-    return db_product
-
-@app.delete("/api/products/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
-    db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not db_product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    db.delete(db_product)
-    db.commit()
-    return {"message": "Product deleted successfully"}
-
-# ==================== ORDERS ====================
-@app.post("/api/orders/", response_model=schemas.Order)
-def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
-    # Create order
-    db_order = models.Order(
-        customer_name=order.customer_name,
-        total=order.total,
-        status=order.status
-    )
-    db.add(db_order)
-    db.flush()
-    
-    # Create order items
-    for item in order.items:
-        db_item = models.OrderItem(
-            order_id=db_order.id,
-            product_id=item.product_id,
-            quantity=item.quantity,
-            price=item.price
-        )
-        db.add(db_item)
-    
-    db.commit()
-    db.refresh(db_order)
-    return db_order
-
-@app.get("/api/orders/", response_model=List[schemas.Order])
-def list_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    orders = db.query(models.Order).offset(skip).limit(limit).all()
-    return orders
-
-@app.get("/api/orders/{order_id}", response_model=schemas.Order)
-def get_order(order_id: int, db: Session = Depends(get_db)):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return order
-
-@app.put("/api/orders/{order_id}/rating")
-def rate_order(order_id: int, rating: int, db: Session = Depends(get_db)):
-    if rating < 1 or rating > 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
-    
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    order.rating = rating
-    db.commit()
-    
-    # Update product ratings
-    for item in order.items:
-        product = item.product
-        product.review_count += 1
-        product.rating = ((product.rating * (product.review_count - 1)) + rating) / product.review_count
-        db.commit()
-    
-    return {"message": "Order rated successfully"}
-
-@app.put("/api/orders/{order_id}/status")
-def update_order_status(order_id: int, status: str, db: Session = Depends(get_db)):
-    valid_statuses = ["Pending", "Processing", "Shipped", "Completed", "Cancelled"]
-    if status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {valid_statuses}")
-    
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    order.status = status
-    db.commit()
-    db.refresh(order)
-    return order
-
-@app.get("/api/orders/seller/{seller_id}", response_model=List[schemas.Order])
-def list_seller_orders(seller_id: int, db: Session = Depends(get_db)):
-    """
-    Get all orders that contain at least one product from the given seller.
-    """
-    # Join Order -> OrderItem -> Product
-    orders = db.query(models.Order).join(models.OrderItem).join(models.Product).filter(
-        models.Product.seller_id == seller_id
-    ).distinct().all()
-    
-    return orders
-
-# Tax & Refund Endpoints
-@app.get("/api/orders/{order_id}/invoice")
-def get_order_invoice(order_id: int, db: Session = Depends(get_db)):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    tax_service = TaxService()
-    pdf_buffer = tax_service.generate_invoice_pdf(order)
-    
-    return StreamingResponse(
-        pdf_buffer, 
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=invoice_{order_id}.pdf"}
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for error in exc.errors():
+        errors.append({
+            "field": " -> ".join(str(loc) for loc in error["loc"]),
+            "message": error["msg"],
+        })
+    logger.warning("Validation error on %s: %s", request.url.path, errors)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": "Validation error", "errors": errors},
     )
 
-@app.post("/api/orders/{order_id}/refund")
-def refund_order(order_id: int, db: Session = Depends(get_db)):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    if order.status == "Refunded":
-        raise HTTPException(status_code=400, detail="Order already refunded")
 
-    # Mock Refund Logic (In real app, call Stripe/PayPal API here)
-    order.status = "Refunded"
-    db.commit()
-    return {"message": "Refund issued successfully", "new_status": "Refunded"}
+# ==================== ROUTES ====================
+app.include_router(api_v1_router)
 
-# Helper to find Test Users for App Login
-@app.get("/api/debug/test-users")
-def get_test_users(db: Session = Depends(get_db)):
-    producer = db.query(models.User).filter(models.User.name == "Test Producer").first()
-    buyer = db.query(models.User).filter(models.User.name == "Test Buyer").first()
-    
-    return {
-        "producer": {"id": producer.id, "name": producer.name, "location": producer.location} if producer else None,
-        "buyer": {"id": buyer.id, "name": buyer.name, "location": buyer.location} if buyer else None
-    }
 
-# ==================== REVIEWS ====================
-@app.post("/api/reviews/", response_model=schemas.Review)
-def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db)):
-    # Check if product exists
-    product = db.query(models.Product).filter(models.Product.id == review.product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    db_review = models.Review(**review.dict())
-    db.add(db_review)
-    db.commit()
-    db.refresh(db_review)
-    
-    # Update product rating
-    reviews = db.query(models.Review).filter(models.Review.product_id == review.product_id).all()
-    avg_rating = sum(r.rating for r in reviews) / len(reviews)
-    product.rating = avg_rating
-    product.review_count = len(reviews)
-    db.commit()
-    
-    return db_review
-
-@app.get("/api/reviews/product/{product_id}", response_model=List[schemas.Review])
-def get_product_reviews(product_id: int, db: Session = Depends(get_db)):
-    reviews = db.query(models.Review).filter(models.Review.product_id == product_id).all()
-    return reviews
-
-# ==================== HEALTH CHECK ====================
-@app.get("/")
+@app.get("/", tags=["health"])
 def root():
-    return {"message": "AgroMarket API is running!", "version": "1.0.0"}
+    return {"message": "AgroMarket API", "version": "1.0.0", "docs": "/docs"}
 
-@app.get("/health")
+
+@app.get("/health", tags=["health"])
 def health_check():
-    return {"status": "healthy"}
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "healthy"
+    except Exception:
+        db_status = "unhealthy"
+    finally:
+        db.close()
+    return {"status": "healthy", "database": db_status}

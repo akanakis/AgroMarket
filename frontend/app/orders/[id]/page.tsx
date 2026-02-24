@@ -1,7 +1,10 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Package, ChevronLeft, Truck, CheckCircle, Clock, MapPin, XCircle } from 'lucide-react';
+import { Package, ChevronLeft, Truck, CheckCircle, Clock, XCircle } from 'lucide-react';
 import * as API from '../../../services/apiService';
+import { useAuth } from '../../../context/AuthContext';
 import { OrderAPI, ProductAPI } from '../../../types';
 
 const STATUS_STEPS = [
@@ -14,6 +17,7 @@ const STATUS_STEPS = [
 export default function OrderDetailsPage() {
     const params = useParams();
     const router = useRouter();
+    const { accessToken } = useAuth();
     const orderId = Number(params.id);
 
     const [order, setOrder] = useState<OrderAPI | null>(null);
@@ -21,20 +25,17 @@ export default function OrderDetailsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadData();
-    }, [orderId]);
+        if (accessToken) loadData();
+    }, [orderId, accessToken]);
 
     const loadData = async () => {
         try {
-            const [ordersData, productsData] = await Promise.all([
-                API.fetchOrders(),
+            const [foundOrder, productsData] = await Promise.all([
+                API.getOrder(orderId, accessToken!),
                 API.fetchProducts()
             ]);
 
-            const foundOrder = ordersData.find(o => o.id === orderId);
-            if (foundOrder) {
-                setOrder(foundOrder);
-            }
+            setOrder(foundOrder);
 
             const pMap: Record<number, string> = {};
             productsData.forEach((p: ProductAPI) => pMap[p.id] = p.name);

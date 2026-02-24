@@ -1,71 +1,84 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserRole, UserProfile } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as API from '../services/apiService';
 
 interface AuthContextType {
-    role: UserRole | null;
-    setRole: (role: UserRole | null) => void;
-    userProfile: UserProfile | null;
-    setUserProfile: (profile: UserProfile | null) => void;
-    currentUserId: number | null;
-    setCurrentUserId: (id: number | null) => void;
-    login: (role: UserRole) => void;
-    logout: () => void;
+  user: API.UserProfile | null;
+  accessToken: string | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: API.RegisterPayload) => Promise<void>;
+  logout: () => Promise<void>;
+  getAuthHeaders: () => { Authorization: string } | Record<string, never>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [role, setRole] = useState<UserRole | null>(null);
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [user, setUser] = useState<API.UserProfile | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        // Load from local storage
-        const storedId = localStorage.getItem('agromarket_user_id');
-        if (storedId) setCurrentUserId(parseInt(storedId));
-    }, []);
-
-    const login = (selectedRole: UserRole) => {
-        setRole(selectedRole);
-        if (selectedRole === UserRole.BUYER) {
-            const guestId = 4; // Maria K. from seed
-            setCurrentUserId(guestId);
-            setUserProfile({ name: 'Maria K.', role: UserRole.BUYER, location: 'Athens, Attica' });
-            localStorage.setItem('agromarket_user_id', guestId.toString());
-        } else if (selectedRole === UserRole.PRODUCER) {
-            const producerId = 1; // Papadopoulos Estate from seed
-            setCurrentUserId(producerId);
-            setUserProfile({ name: 'Papadopoulos Estate', role: UserRole.PRODUCER, location: 'Kalamata' });
-            localStorage.setItem('agromarket_user_id', producerId.toString());
-        }
+  // On mount: try to restore session via refresh cookie (httpOnly)
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const tokenRes = await API.refreshToken();
+        const profile = await API.getMe(tokenRes.access_token);
+        setAccessToken(tokenRes.access_token);
+        setUser(profile);
+      } catch {
+        // No valid session — user needs to log in
+        setAccessToken(null);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
+    restoreSession();
+  }, []);
 
-    const logout = () => {
-        setRole(null);
-        setUserProfile(null);
-        setCurrentUserId(null); // Optional: keep ID or clear it? Clearning for full logout.
-        localStorage.removeItem('agromarket_user_id');
-    };
+  const login = useCallback(async (email: string, password: string) => {
+    const tokenRes = await API.login(email, password);
+    const profile = await API.getMe(tokenRes.access_token);
+    setAccessToken(tokenRes.access_token);
+    setUser(profile);
+  }, []);
 
-    return (
-        <AuthContext.Provider value={{
-            role, setRole,
-            userProfile, setUserProfile,
-            currentUserId, setCurrentUserId,
-            login, logout
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  const register = useCallback(async (payload: API.RegisterPayload) => {
+    await API.register(payload);
+    await login(payload.email, payload.password);
+  }, [login]);
+
+  const logout = useCallback(async () => {
+    if (accessToken) {
+      try {
+        await API.logout(accessToken);
+      } catch {
+        // Clear local state regardless of server response
+      }
+    }
+    setAccessToken(null);
+    setUser(null);
+  }, [accessToken]);
+
+  const getAuthHeaders = useCallback((): { Authorization: string } | Record<string, never> => {
+    if (!accessToken) return {};
+    return { Authorization: `Bearer ${accessToken}` };
+  }, [accessToken]);
+
+  return (
+    <AuthContext.Provider value={{ user, accessToken, isLoading, login, register, logout, getAuthHeaders }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
