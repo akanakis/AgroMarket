@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Upload, Sprout } from 'lucide-react';
-import { Product } from '../types';
 import * as API from '../services/apiService';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
 interface AddProductModalProps {
@@ -13,6 +13,7 @@ interface AddProductModalProps {
 }
 
 export default function AddProductModal({ isOpen, onClose, onProductAdded, sellerId, sellerName }: AddProductModalProps) {
+    const { accessToken } = useAuth();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -41,6 +42,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, selle
                 return;
             }
 
+            if (!accessToken) {
+                toast.error('You must be logged in to add a product');
+                setLoading(false);
+                return;
+            }
+
             const productData = {
                 name: formData.name,
                 description: formData.description,
@@ -48,15 +55,13 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, selle
                 unit: formData.unit,
                 category: formData.category,
                 location: formData.location,
-                seller_id: sellerId,
-                seller_name: sellerName,
-                image_url: formData.imageUrl || 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&q=80', // Default fallback
+                image_url: formData.imageUrl || 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&q=80',
                 organic: formData.organic,
                 harvest_date: formData.harvestDate,
                 max_quantity: parseInt(formData.maxQuantity)
             };
 
-            await API.createProduct(productData);
+            await API.createProduct(productData, accessToken);
             toast.success('Product listed successfully!');
             onProductAdded();
             onClose();

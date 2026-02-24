@@ -1,95 +1,99 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserRole, UserProfile } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import * as API from '../services/apiService';
+
+const ACCESS_TOKEN_KEY = 'agromarket_access_token';
+const REFRESH_TOKEN_KEY = 'agromarket_refresh_token';
 
 interface AuthContextType {
-    role: UserRole | null;
-    setRole: (role: UserRole | null) => void;
-    userProfile: UserProfile | null;
-    setUserProfile: (profile: UserProfile | null) => void;
-    currentUserId: number | null;
-    setCurrentUserId: (id: number | null) => void;
-    login: (role: UserRole, specificUser?: { id: number; name: string; location: string }) => void;
-    logout: () => void;
+  user: API.UserProfile | null;
+  accessToken: string | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: API.RegisterPayload) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [role, setRole] = useState<UserRole | null>(null);
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [user, setUser] = useState<API.UserProfile | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const loadUser = async () => {
-            try {
-                const storedId = await AsyncStorage.getItem('agromarket_user_id');
-                const storedRole = await AsyncStorage.getItem('agromarket_user_role');
-                if (storedId && storedRole) {
-                    setCurrentUserId(parseInt(storedId));
-                    const userRole = storedRole as UserRole;
-                    setRole(userRole);
-                    if (userRole === UserRole.BUYER) {
-                        setUserProfile({ name: 'Maria K.', role: UserRole.BUYER, location: 'Athens, Attica' });
-                    } else if (userRole === UserRole.PRODUCER) {
-                        setUserProfile({ name: 'Papadopoulos Estate', role: UserRole.PRODUCER, location: 'Kalamata' });
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to load user from storage', e);
-            }
-        };
-        loadUser();
-    }, []);
-
-    const login = async (selectedRole: UserRole, specificUser?: { id: number; name: string; location: string }) => {
-        setRole(selectedRole);
-        let userId = 0;
-        let profile: UserProfile | null = null;
-
-        if (specificUser) {
-            userId = specificUser.id;
-            profile = { name: specificUser.name, role: selectedRole, location: specificUser.location };
-        } else if (selectedRole === UserRole.BUYER) {
-            userId = 4; // Default guest
-            profile = { name: 'Maria K.', role: UserRole.BUYER, location: 'Athens, Attica' };
-        } else if (selectedRole === UserRole.PRODUCER) {
-            userId = 1; // Default producer
-            profile = { name: 'Papadopoulos Estate', role: UserRole.PRODUCER, location: 'Kalamata' };
+  // On mount: restore session from SecureStore
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const storedToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+        if (storedToken) {
+          const profile = await API.getMe(storedToken);
+          setAccessToken(storedToken);
+          setUser(profile);
         }
-
-        if (profile && userId) {
-            setCurrentUserId(userId);
-            setUserProfile(profile);
-            await AsyncStorage.setItem('agromarket_user_id', userId.toString());
-            await AsyncStorage.setItem('agromarket_user_role', selectedRole);
+      } catch {
+        // Token expired or invalid — try refresh
+        try {
+          const storedRefresh = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+          if (storedRefresh) {
+            const tokenRes = await API.refreshTokenWithToken(storedRefresh);
+            const profile = await API.getMe(tokenRes.access_token);
+            setAccessToken(tokenRes.access_token);
+            setUser(profile);
+            await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokenRes.access_token);
+          }
+        } catch {
+          await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+          await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
         }
+      } finally {
+        setIsLoading(false);
+      }
     };
+    restoreSession();
+  }, []);
 
-    const logout = async () => {
-        setRole(null);
-        setUserProfile(null);
-        setCurrentUserId(null);
-        await AsyncStorage.removeItem('agromarket_user_id');
-        await AsyncStorage.removeItem('agromarket_user_role');
-    };
+  const login = useCallback(async (email: string, password: string) => {
+    const tokenRes = await API.login(email, password);
+    const profile = await API.getMe(tokenRes.access_token);
+    setAccessToken(tokenRes.access_token);
+    setUser(profile);
+    await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokenRes.access_token);
+    if (tokenRes.refresh_token) {
+      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokenRes.refresh_token);
+    }
+  }, []);
 
-    return (
-        <AuthContext.Provider value={{
-            role, setRole,
-            userProfile, setUserProfile,
-            currentUserId, setCurrentUserId,
-            login, logout
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  const register = useCallback(async (payload: API.RegisterPayload) => {
+    await API.register(payload);
+    await login(payload.email, payload.password);
+  }, [login]);
+
+  const logout = useCallback(async () => {
+    if (accessToken) {
+      try {
+        await API.logout(accessToken);
+      } catch {
+        // Clear local state regardless
+      }
+    }
+    setAccessToken(null);
+    setUser(null);
+    await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+  }, [accessToken]);
+
+  return (
+    <AuthContext.Provider value={{ user, accessToken, isLoading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

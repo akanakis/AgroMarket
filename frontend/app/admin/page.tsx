@@ -4,24 +4,26 @@ import React, { useState, useEffect } from 'react';
 import { Package, Search, Filter } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import * as API from '../../services/apiService';
+import { useAuth } from '../../context/AuthContext';
 import { Order } from '../../types';
 import { format } from 'date-fns';
 import { cn } from '../../lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminPage() {
+    const { accessToken } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
 
     useEffect(() => {
-        loadData();
-    }, []);
+        if (accessToken) loadData();
+    }, [accessToken]);
 
     const loadData = async () => {
         try {
-            const data = await API.fetchOrders();
+            const data = await API.fetchMyOrders(accessToken!);
             // Map backend data to frontend types if needed, similar to DashboardClient
             // Assuming simplified mapping for admin view
             const mappedOrders = data.map((o: any) => ({

@@ -3,6 +3,8 @@ export enum UserRole {
   PRODUCER = 'PRODUCER',
 }
 
+export type AppView = 'marketplace' | 'dashboard';
+
 export interface UserProfile {
   name: string;
   role: UserRole;
@@ -46,4 +48,51 @@ export interface OrderAPI {
   rating: number | null;
   created_at: string;
   items: OrderItemAPI[];
+}
+
+// ==================== FRONTEND (camelCase) TYPES ====================
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  unit: string;
+  category: string;
+  location: string;
+  sellerName: string;
+  imageUrl: string;
+  organic: boolean;
+  harvestDate: string;
+  expirationDate?: string;
+  maxQuantity: number;
+  rating: number;
+  reviewCount: number;
+}
+
+export interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  items: CartItem[];
+  total: number;
+  date: string;
+  customerName: string;
+  status: string;
+  rating?: number;
+}
+
+export interface Review {
+  id: string;
+  productId?: string;
+  author: string;
+  rating: number;
+  comment: string;
+  date: string;
 }

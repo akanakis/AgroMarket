@@ -6,26 +6,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { UserRole } from '../types';
 import LanguageSelector from './LanguageSelector';
 
 export default function Navbar() {
-    const { role, userProfile, logout, login } = useAuth();
+    const { user, logout } = useAuth();
     const { lang, setLang } = useLanguage();
     const router = useRouter();
 
-    const handleSellerLogin = () => {
-        login(UserRole.PRODUCER);
-        router.push('/dashboard');
-    };
-
-    const handleBuyerLogin = () => {
-        login(UserRole.BUYER);
-        // Stays on the same page (Marketplace)
-    };
-
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
         router.push('/');
     };
 
@@ -44,7 +33,7 @@ export default function Navbar() {
                         buttonClassName="text-sm font-semibold text-stone-600 bg-stone-50 px-3 py-1.5 rounded-full hover:bg-stone-100 border border-transparent"
                     />
 
-                    {role === UserRole.BUYER && (
+                    {user?.role === 'BUYER' && (
                         <Link
                             href="/orders"
                             className="flex items-center gap-2 text-sm text-stone-600 hover:text-green-700 bg-white hover:bg-green-50 px-3 py-1.5 rounded-full border border-stone-200 transition-all"
@@ -54,33 +43,33 @@ export default function Navbar() {
                         </Link>
                     )}
 
-                    {userProfile && (
+                    {user && (
                         <div className="hidden md:flex items-center gap-2 text-sm text-stone-600 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
                             <UserCircle size={16} />
-                            <span>Viewing as: <span className="font-semibold text-stone-800">{userProfile.name}</span></span>
+                            <span>Viewing as: <span className="font-semibold text-stone-800">{user.name}</span></span>
                         </div>
                     )}
 
-                    {!role && (
+                    {!user && (
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleBuyerLogin}
+                            <Link
+                                href="/auth/login"
                                 className="flex items-center gap-2 text-sm font-bold text-stone-600 hover:text-green-700 px-3 py-2 rounded-lg transition-colors"
                             >
                                 <User size={18} />
                                 <span className="hidden sm:inline">Login</span>
-                            </button>
-                            <button
-                                onClick={handleSellerLogin}
+                            </Link>
+                            <Link
+                                href="/auth/register"
                                 className="flex items-center gap-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 px-4 py-2 rounded-full shadow-md transition-colors"
                             >
                                 <Store size={18} />
-                                <span className="hidden sm:inline">Login as Seller</span>
-                            </button>
+                                <span className="hidden sm:inline">Register</span>
+                            </Link>
                         </div>
                     )}
 
-                    {role && (
+                    {user && (
                         <button
                             onClick={handleLogout}
                             className="flex items-center gap-2 text-sm font-medium text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
