@@ -35,6 +35,10 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class TokenWithRefresh(Token):
+    refresh_token: str
+
+
 class TokenData(BaseModel):
     user_id: int
     role: str
@@ -74,6 +78,18 @@ VALID_CATEGORIES = Literal[
 ]
 
 
+_SAFE_URL_SCHEMES = ("http://", "https://")
+
+
+def _validate_image_url(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return v
+    lowered = v.strip().lower()
+    if not any(lowered.startswith(scheme) for scheme in _SAFE_URL_SCHEMES):
+        raise ValueError("image_url must be an http or https URL")
+    return v
+
+
 class ProductBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str = Field(min_length=10, max_length=5000)
@@ -86,6 +102,14 @@ class ProductBase(BaseModel):
     harvest_date: str = Field(max_length=20)
     expiration_date: Optional[str] = Field(default=None, max_length=20)
     max_quantity: int = Field(gt=0)
+
+    @field_validator("image_url")
+    @classmethod
+    def image_url_must_be_safe(cls, v: str) -> str:
+        result = _validate_image_url(v)
+        if result is None:
+            raise ValueError("image_url is required")
+        return result
 
 
 class ProductCreate(ProductBase):
@@ -105,6 +129,11 @@ class ProductUpdate(BaseModel):
     harvest_date: Optional[str] = Field(default=None, max_length=20)
     expiration_date: Optional[str] = Field(default=None, max_length=20)
     max_quantity: Optional[int] = Field(default=None, gt=0)
+
+    @field_validator("image_url")
+    @classmethod
+    def image_url_must_be_safe(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_image_url(v)
 
 
 class Product(ProductBase):
