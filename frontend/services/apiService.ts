@@ -39,7 +39,7 @@ export interface UserProfile {
   id: number;
   name: string;
   email: string;
-  role: 'BUYER' | 'PRODUCER';
+  role: 'BUYER' | 'PRODUCER' | 'ADMIN';
   location: string;
   farm_name?: string | null;
   certifications?: string | null;
@@ -56,7 +56,7 @@ export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
-  role: 'BUYER' | 'PRODUCER';
+  role: 'BUYER' | 'PRODUCER' | 'ADMIN';
   location: string;
   farm_name?: string;
 }
@@ -231,3 +231,42 @@ export const updateMyProfile = (
   token: string,
 ): Promise<UserProfile> =>
   apiClient('/users/me', { method: 'PUT', body: JSON.stringify(payload) }, token);
+
+// ==================== ADMIN ====================
+
+export interface AdminStats {
+  total_revenue: number;
+  total_orders: number;
+  orders_by_status: Record<string, number>;
+  total_users: number;
+  buyers_count: number;
+  producers_count: number;
+  total_products: number;
+  organic_products: number;
+  total_reviews: number;
+}
+
+export const fetchAdminStats = (token: string): Promise<AdminStats> =>
+  apiClient('/admin/stats', {}, token);
+
+export const fetchAllOrders = (
+  token: string,
+  params?: { skip?: number; limit?: number; status?: string },
+): Promise<OrderAPI[]> => {
+  const qs = new URLSearchParams();
+  if (params?.skip !== undefined) qs.set('skip', String(params.skip));
+  if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+  if (params?.status && params.status !== 'All') qs.set('status', params.status);
+  const query = qs.toString() ? `?${qs}` : '';
+  return apiClient(`/admin/orders${query}`, {}, token);
+};
+
+export const fetchAllUsers = (
+  token: string,
+  params?: { role?: string },
+): Promise<UserProfile[]> => {
+  const qs = new URLSearchParams();
+  if (params?.role) qs.set('role', params.role);
+  const query = qs.toString() ? `?${qs}` : '';
+  return apiClient(`/admin/users${query}`, {}, token);
+};

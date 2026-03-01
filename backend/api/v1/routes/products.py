@@ -66,8 +66,11 @@ def update_product(
     if db_product.seller_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own products")
 
-    for key, value in product_update.model_dump(exclude_unset=True).items():
-        setattr(db_product, key, value)
+    update_data = product_update.model_dump(exclude_unset=True)
+    _ALLOWED = frozenset({"name", "description", "price", "unit", "category", "location",
+                          "image_url", "organic", "harvest_date", "expiration_date"})
+    for field in _ALLOWED.intersection(update_data):
+        setattr(db_product, field, update_data[field])
 
     db.commit()
     db.refresh(db_product)

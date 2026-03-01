@@ -9,7 +9,7 @@ class UserRegister(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    role: Literal["BUYER", "PRODUCER"]
+    role: Literal["BUYER", "PRODUCER", "ADMIN"]
     location: str = Field(min_length=2, max_length=300)
     farm_name: Optional[str] = Field(default=None, max_length=200)
 
@@ -44,7 +44,7 @@ class TokenData(BaseModel):
 
 class UserProfileBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
-    role: Literal["BUYER", "PRODUCER"]
+    role: Literal["BUYER", "PRODUCER", "ADMIN"]
     location: str = Field(min_length=2, max_length=300)
     farm_name: Optional[str] = Field(default=None, max_length=200)
     certifications: Optional[str] = None

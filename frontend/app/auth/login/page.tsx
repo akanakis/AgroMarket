@@ -91,11 +91,13 @@ export default function LoginPage() {
           </Link>
         </p>
 
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500">
-          <p className="font-medium mb-1">Test accounts:</p>
-          <p>Producer: producer@test.com / Test1234!</p>
-          <p>Buyer: buyer@test.com / Test1234!</p>
-        </div>
+        {process.env.NODE_ENV !== 'production' && (
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500">
+            <p className="font-medium mb-1">Test accounts:</p>
+            <p>Producer: producer@test.com / Test1234!</p>
+            <p>Buyer: buyer@test.com / Test1234!</p>
+          </div>
+        )}
       </div>
     </div>
   );

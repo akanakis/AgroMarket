@@ -248,6 +248,19 @@ def seed_database():
         print("  Producer — email: producer@test.com  password: Test1234!")
         print("  Buyer    — email: buyer@test.com     password: Test1234!")
 
+
+        # ==================== ADMIN USER ====================
+        admin_user = models.User(
+            name="Admin",
+            email="admin@test.com",
+            password_hash=hash_password("Admin1234!"),
+            role="ADMIN",
+            location="Admin HQ",
+        )
+        db.add(admin_user)
+        db.commit()
+
+        print("  Admin     — email: admin@test.com      password: Admin1234!")
     except Exception as e:
         print(f"Error seeding database: {e}")
         db.rollback()

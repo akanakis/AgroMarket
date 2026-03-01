@@ -19,7 +19,8 @@ def list_users(
 ):
     if limit > 200:
         limit = 200
-    users = db.query(models.User).offset(skip).limit(limit).all()
+    # Only return producers — buyer accounts are private
+    users = db.query(models.User).filter(models.User.role == "PRODUCER").offset(skip).limit(limit).all()
     return users
 
 
@@ -34,8 +35,10 @@ def update_my_profile(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    for key, value in profile_update.model_dump(exclude_unset=True).items():
-        setattr(current_user, key, value)
+    update_data = profile_update.model_dump(exclude_unset=True)
+    _ALLOWED = frozenset({"name", "location", "farm_name", "certifications", "preferences"})
+    for field in _ALLOWED.intersection(update_data):
+        setattr(current_user, field, update_data[field])
     db.commit()
     db.refresh(current_user)
     return current_user

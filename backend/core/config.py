@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # Comma-separated string (pydantic-settings v2 needs JSON for List fields via env)
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:19006"
     REDIS_URL: str = "redis://localhost:6379"
+    ENVIRONMENT: str = "development"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
