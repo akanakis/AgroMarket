@@ -79,7 +79,10 @@ export const login = (email: string, password: string): Promise<TokenResponse> =
     apiCall('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 
 export const refreshTokenWithToken = (refreshToken: string): Promise<TokenResponse> =>
-    apiCall('/auth/refresh', { method: 'POST', headers: { 'X-Refresh-Token': refreshToken } });
+    apiCall('/auth/refresh/mobile', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${refreshToken}` },
+    });
 
 export const logout = (token: string): Promise<void> =>
     apiCall('/auth/logout', { method: 'POST' }, token);

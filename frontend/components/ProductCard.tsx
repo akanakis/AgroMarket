@@ -1,7 +1,20 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { MapPin, Leaf, ShoppingBasket, ChefHat, Loader2, Info, Calendar, Pencil, Trash2, Plus, Minus, Star, AlertTriangle, Clock } from 'lucide-react';
-import { generateRecipeSuggestion } from '../services/geminiService';
+async function generateRecipeSuggestion(productName: string): Promise<string> {
+  try {
+    const res = await fetch('/api/ai/recipe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productName }),
+    });
+    if (!res.ok) return 'Could not generate recipe at this time.';
+    const data = await res.json();
+    return data.suggestion || 'No recipe found.';
+  } catch {
+    return 'Could not generate recipe at this time.';
+  }
+}
 import { translations, Language } from '../utils/translations';
 
 interface ProductCardProps {
