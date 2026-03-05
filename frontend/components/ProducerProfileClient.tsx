@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, MapPin, Award, Star } from 'lucide-react';
 import { Product } from '../types';
 import ProductCard from './ProductCard';
@@ -20,44 +21,32 @@ const ProducerProfileClient: React.FC<ProducerProfileClientProps> = ({ sellerNam
     const { lang } = useLanguage();
     const router = useRouter();
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
-
     const t = translations[lang];
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                const data = await API.fetchProducts();
-
-                // Filter by seller name
-                const producerProducts = data.filter(p => p.seller_name === sellerName).map(p => ({
-                    id: p.id.toString(),
-                    name: p.name,
-                    description: p.description,
-                    price: p.price,
-                    unit: p.unit,
-                    category: p.category,
-                    location: p.location,
-                    sellerName: p.seller_name,
-                    imageUrl: p.image_url,
-                    organic: p.organic,
-                    harvestDate: p.harvest_date,
-                    expirationDate: p.expiration_date || undefined,
-                    maxQuantity: p.max_quantity,
-                    rating: p.rating,
-                    reviewCount: p.review_count
-                }));
-                setProducts(producerProducts);
-            } catch (error) {
-                console.error('Error loading producer data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
-    }, [sellerName]);
+    const { data: products = [], isLoading: loading } = useQuery({
+        queryKey: ['producerProducts', sellerName],
+        queryFn: async () => {
+            const data = await API.fetchProducts();
+            return data.filter((p: any) => p.seller_name === sellerName).map((p: any) => ({
+                id: p.id.toString(),
+                name: p.name,
+                description: p.description,
+                price: p.price,
+                unit: p.unit,
+                category: p.category,
+                location: p.location,
+                sellerName: p.seller_name,
+                imageUrl: p.image_url,
+                organic: p.organic,
+                harvestDate: p.harvest_date,
+                expirationDate: p.expiration_date || undefined,
+                maxQuantity: p.max_quantity,
+                rating: p.rating,
+                reviewCount: p.review_count
+            }));
+        },
+        enabled: !!sellerName
+    });
 
     const handleViewProduct = (product: Product) => {
         router.push(`/products/${product.id}`);

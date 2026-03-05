@@ -11,7 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ArrowLeft, CheckCircle2, Clock, Package, Truck, XCircle } from 'lucide-react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { translations } from '../utils/translations';
 import * as API from '../services/apiService';
 
@@ -26,44 +28,84 @@ export default function OrderTrackerScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { orderId } = route.params as { orderId: number };
+    const { accessToken } = useAuth();
     const { lang } = useLanguage();
     const t = translations[lang];
 
-    const [order, setOrder] = useState<API.OrderAPI | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [productNames, setProductNames] = useState<Record<number, string>>({});
+    const queryClient = useQueryClient();
 
-    useEffect(() => {
-        loadData();
-    }, [orderId]);
-
-    const loadData = async () => {
-        try {
+    const { data, isLoading: loading } = useQuery({
+        queryKey: ['orderTracker', orderId],
+        queryFn: async () => {
+            if (!accessToken) throw new Error("No token");
             const [ordersData, productsData] = await Promise.all([
-                API.fetchOrders(),
+                API.fetchOrders(accessToken),
                 API.fetchProducts()
             ]);
 
             const targetOrder = ordersData.find(o => o.id === orderId);
+            if (!targetOrder) throw new Error("Order not found");
 
-            // Build map
             const pMap: Record<number, string> = {};
             productsData.forEach((p: API.ProductAPI) => pMap[p.id] = p.name);
-            setProductNames(pMap);
 
-            if (targetOrder) {
-                setOrder(targetOrder);
-            } else {
-                Alert.alert("Error", "Order not found");
-                navigation.goBack();
-            }
+            return { order: targetOrder, productNames: pMap };
+        },
+        enabled: !!accessToken
+    });
 
-        } catch (err: any) {
-            Alert.alert("Error", "Failed to load order");
-        } finally {
-            setLoading(false);
+    const order = data?.order || null;
+    const productNames = data?.productNames || {};
+
+    useEffect(() => {
+        if (!loading && !order) {
+            Alert.alert("Error", "Order not found");
+            navigation.goBack();
         }
-    };
+    }, [loading, order, navigation]);
+
+    useEffect(() => {
+        if (!accessToken) return;
+
+        let isMounted = true;
+        let ws: WebSocket | null = null;
+        let reconnectTimeout: NodeJS.Timeout;
+
+        const connectWS = () => {
+            if (!isMounted) return;
+            const wsUrl = `${API.getWsUrl()}/ws/orders?token=${accessToken}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.event === 'order_updated' && data.order_id === orderId) {
+                        // Invalidate cache directly
+                        queryClient.invalidateQueries({ queryKey: ['orderTracker', orderId] });
+                    }
+                } catch (error) {
+                    console.error('WS Parse Error', error);
+                }
+            };
+
+            ws.onclose = () => {
+                if (isMounted) {
+                    reconnectTimeout = setTimeout(connectWS, 5000);
+                }
+            };
+        };
+
+        connectWS();
+
+        return () => {
+            isMounted = false;
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            if (ws) {
+                ws.onclose = null;
+                ws.close();
+            }
+        };
+    }, [accessToken, orderId]);
 
     if (loading) {
         return (

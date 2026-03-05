@@ -1,10 +1,11 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from core.auth import get_current_user, require_role
+from core.websockets import manager
 from tax_service import TaxService
 import models
 import schemas
@@ -67,6 +68,7 @@ def list_orders(
     if current_user.role == "BUYER":
         orders = (
             db.query(models.Order)
+            .options(joinedload(models.Order.items))
             .filter(models.Order.customer_id == current_user.id)
             .offset(skip)
             .limit(limit)
@@ -76,6 +78,7 @@ def list_orders(
         # PRODUCER sees orders that contain their products
         orders = (
             db.query(models.Order)
+            .options(joinedload(models.Order.items))
             .join(models.OrderItem)
             .join(models.Product)
             .filter(models.Product.seller_id == current_user.id)
@@ -97,6 +100,7 @@ def list_seller_orders(
         raise HTTPException(status_code=403, detail="You can only view your own orders")
     orders = (
         db.query(models.Order)
+        .options(joinedload(models.Order.items))
         .join(models.OrderItem)
         .join(models.Product)
         .filter(models.Product.seller_id == seller_id)
@@ -112,7 +116,7 @@ def get_order(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
@@ -128,13 +132,13 @@ def get_order(
 
 
 @router.put("/{order_id}/status", response_model=schemas.Order)
-def update_order_status(
+async def update_order_status(
     order_id: int,
     status_update: schemas.OrderStatusUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role(["PRODUCER"])),
 ):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
@@ -146,6 +150,18 @@ def update_order_status(
     order.status = status_update.status
     db.commit()
     db.refresh(order)
+
+    # Broadcast event to the buyer via WebSocket
+    await manager.send_personal_message(
+        {
+            "event": "order_updated",
+            "order_id": order.id,
+            "status": order.status,
+            "message": f"Your order #{order.id} is now {order.status}"
+        },
+        order.customer_id
+    )
+
     return order
 
 
@@ -156,7 +172,7 @@ def rate_order(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role(["BUYER"])),
 ):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.customer_id != current_user.id:
@@ -186,7 +202,7 @@ def get_order_invoice(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.customer_id != current_user.id:

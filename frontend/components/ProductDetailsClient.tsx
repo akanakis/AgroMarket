@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ShoppingBag, MapPin, Calendar, Award, Star, ShieldCheck, Truck, Minus, Plus } from 'lucide-react';
 import { Product } from '../types';
 import { translations } from '../utils/translations';
@@ -19,46 +20,38 @@ const ProductDetailsClient: React.FC<ProductDetailsClientProps> = ({ productId }
     const { lang } = useLanguage();
     const router = useRouter();
 
-    const [product, setProduct] = useState<Product | null>(null);
-    const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
-
     const t = translations[lang];
 
-    useEffect(() => {
-        const loadProduct = async () => {
-            try {
-                setLoading(true);
-                const products = await API.fetchProducts();
-                const found = products.find(p => p.id.toString() === productId);
+    const { data: product = null, isLoading: loading } = useQuery({
+        queryKey: ['product', productId],
+        queryFn: async () => {
+            const products = await API.fetchProducts();
+            const found = products.find((p: any) => p.id.toString() === productId);
 
-                if (found) {
-                    setProduct({
-                        id: found.id.toString(),
-                        name: found.name,
-                        description: found.description,
-                        price: found.price,
-                        unit: found.unit,
-                        category: found.category,
-                        location: found.location,
-                        sellerName: found.seller_name,
-                        imageUrl: found.image_url,
-                        organic: found.organic,
-                        harvestDate: found.harvest_date,
-                        expirationDate: found.expiration_date || undefined,
-                        maxQuantity: found.max_quantity,
-                        rating: found.rating,
-                        reviewCount: found.review_count
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading product:', error);
-            } finally {
-                setLoading(false);
+            if (found) {
+                return {
+                    id: found.id.toString(),
+                    name: found.name,
+                    description: found.description,
+                    price: found.price,
+                    unit: found.unit,
+                    category: found.category,
+                    location: found.location,
+                    sellerName: found.seller_name,
+                    imageUrl: found.image_url,
+                    organic: found.organic,
+                    harvestDate: found.harvest_date,
+                    expirationDate: found.expiration_date || undefined,
+                    maxQuantity: found.max_quantity,
+                    rating: found.rating,
+                    reviewCount: found.review_count
+                };
             }
-        };
-        loadProduct();
-    }, [productId]);
+            return null;
+        },
+        enabled: !!productId
+    });
 
     const handleAddToCart = () => {
         if (product) {

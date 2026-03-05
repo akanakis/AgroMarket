@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { Package, ChevronLeft, Truck, CheckCircle, Clock, XCircle } from 'lucide-react';
 import * as API from '../../../services/apiService';
 import { useAuth } from '../../../context/AuthContext';
+import { useLanguage } from '../../../context/LanguageContext';
+import { translations } from '../../../utils/translations';
 import { OrderAPI, ProductAPI } from '../../../types';
 
 const STATUS_STEPS = [
@@ -18,35 +21,28 @@ export default function OrderDetailsPage() {
     const params = useParams();
     const router = useRouter();
     const { accessToken } = useAuth();
+    const { lang } = useLanguage();
+    const t = translations[lang];
     const orderId = Number(params.id);
 
-    const [order, setOrder] = useState<OrderAPI | null>(null);
-    const [products, setProducts] = useState<Record<number, string>>({});
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (accessToken) loadData();
-    }, [orderId, accessToken]);
-
-    const loadData = async () => {
-        try {
+    const { data, isLoading: loading } = useQuery({
+        queryKey: ['orderDetails', orderId],
+        queryFn: async () => {
             const [foundOrder, productsData] = await Promise.all([
                 API.getOrder(orderId, accessToken!),
                 API.fetchProducts()
             ]);
 
-            setOrder(foundOrder);
-
             const pMap: Record<number, string> = {};
             productsData.forEach((p: ProductAPI) => pMap[p.id] = p.name);
-            setProducts(pMap);
 
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+            return { order: foundOrder, products: pMap };
+        },
+        enabled: !!accessToken && !!orderId
+    });
+
+    const order = data?.order || null;
+    const products = data?.products || {};
 
     if (loading) return (
         <div className="min-h-screen bg-[#fafaf5] pt-24 pb-12 flex justify-center">
@@ -89,19 +85,18 @@ export default function OrderDetailsPage() {
                         className="flex items-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-xl font-bold hover:bg-stone-900 transition shadow-sm"
                     >
                         <Package size={18} />
-                        Print Receipt
+                        {t.printReceipt}
                     </a>
                 </div>
 
                 {/* Status Card */}
                 <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8 mb-6">
-                    <h2 className="text-lg font-bold text-stone-900 mb-6">Order Status</h2>
+                    <h2 className="text-lg font-bold text-stone-900 mb-6">{t.orderStatus}</h2>
 
                     {isCancelled ? (
                         <div className="bg-red-50 rounded-xl p-6 flex flex-col items-center gap-3">
                             <XCircle size={48} className="text-red-500" />
-                            <p className="font-bold text-red-700 text-lg">Order Cancelled</p>
-                            <p className="text-red-500 text-sm">This order has been cancelled.</p>
+                            <p className="font-bold text-red-700 text-lg">{String((t as any)['cancelled'] || 'Cancelled')}</p>
                         </div>
                     ) : (
                         <div className="relative">
@@ -118,7 +113,7 @@ export default function OrderDetailsPage() {
                                                         }`}>
                                                         <Icon size={20} />
                                                     </div>
-                                                    <p className={`mt-3 text-sm font-bold ${isActive ? 'text-stone-800' : 'text-stone-400'}`}>{step.label}</p>
+                                                    <p className={`mt-3 text-sm font-bold ${isActive ? 'text-stone-800' : 'text-stone-400'}`}>{String((t as any)[step.key.toLowerCase()] || step.label)}</p>
                                                     {order.status === step.key && (
                                                         <span className="mt-1 text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Current</span>
                                                     )}
@@ -157,7 +152,7 @@ export default function OrderDetailsPage() {
                                                 <Icon size={18} />
                                             </div>
                                             <div className="pt-2">
-                                                <p className={`font-bold text-sm ${isActive ? 'text-stone-800' : 'text-stone-400'}`}>{step.label}</p>
+                                                <p className={`font-bold text-sm ${isActive ? 'text-stone-800' : 'text-stone-400'}`}>{String((t as any)[step.key.toLowerCase()] || step.label)}</p>
                                                 {order.status === step.key && (
                                                     <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">Current Status</span>
                                                 )}
@@ -174,7 +169,7 @@ export default function OrderDetailsPage() {
                 {/* Items & Total */}
                 <div className="grid gap-6 sm:grid-cols-3">
                     <div className="sm:col-span-2 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-                        <h2 className="text-lg font-bold text-stone-900 mb-4">Items ({order.items.length})</h2>
+                        <h2 className="text-lg font-bold text-stone-900 mb-4">{t.items} ({order.items.length})</h2>
                         <div className="divide-y divide-stone-100">
                             {order.items.map((item, idx) => (
                                 <div key={idx} className="py-4 flex justify-between items-center first:pt-0 last:pb-0">
@@ -189,19 +184,19 @@ export default function OrderDetailsPage() {
                     </div>
 
                     <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 h-fit">
-                        <h2 className="text-lg font-bold text-stone-900 mb-4">Summary</h2>
+                        <h2 className="text-lg font-bold text-stone-900 mb-4">{t.summary}</h2>
                         <div className="space-y-3 mb-6">
                             <div className="flex justify-between text-stone-600">
-                                <span>Subtotal</span>
+                                <span>{t.subtotal}</span>
                                 <span>€{order.total.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-stone-600">
-                                <span>Shipping</span>
-                                <span>Free</span>
+                                <span>{t.shipping}</span>
+                                <span>{t.free}</span>
                             </div>
                         </div>
                         <div className="pt-4 border-t border-stone-100 flex justify-between items-center">
-                            <span className="font-bold text-stone-900">Total</span>
+                            <span className="font-bold text-stone-900">{t.total}</span>
                             <span className="font-extrabold text-2xl text-green-600">€{order.total.toFixed(2)}</span>
                         </div>
                     </div>

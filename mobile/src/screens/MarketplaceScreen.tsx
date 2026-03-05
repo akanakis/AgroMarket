@@ -11,7 +11,9 @@ import {
     Switch,
     ActivityIndicator,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Search, SlidersHorizontal, X, ArrowUpDown, RotateCcw } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -24,14 +26,13 @@ import CategoryFilter from '../components/CategoryFilter';
 type SortOption = 'none' | 'price_asc' | 'price_desc' | 'newest' | 'best_rated';
 
 export default function MarketplaceScreen({ navigation }: any) {
-    const { role, userProfile } = useAuth();
+    const { user } = useAuth();
+    const role = user?.role;
+    const userProfile = user;
     const { addToCart } = useCart();
     const { lang } = useLanguage();
     const t = translations[lang];
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [organicOnly, setOrganicOnly] = useState(false);
@@ -40,14 +41,15 @@ export default function MarketplaceScreen({ navigation }: any) {
     const [minPrice, setMinPrice] = useState('');
     const [maxPrice, setMaxPrice] = useState('');
 
-    const loadProducts = useCallback(async () => {
-        try {
+    const { data: products = [], isLoading: loading, isFetching: refreshing, refetch } = useQuery({
+        queryKey: ['products', selectedCategory, organicOnly],
+        queryFn: async () => {
             const data = await API.fetchProducts({
                 category: selectedCategory !== 'All' ? selectedCategory : undefined,
                 organic_only: organicOnly,
             });
 
-            const mapped: Product[] = data.map((p) => ({
+            return data.map((p) => ({
                 id: String(p.id),
                 name: p.name,
                 description: p.description,
@@ -64,19 +66,8 @@ export default function MarketplaceScreen({ navigation }: any) {
                 rating: p.rating,
                 reviewCount: p.review_count,
             }));
-
-            setProducts(mapped);
-        } catch (err: any) {
-            Alert.alert(t.error, err.message || t.error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
         }
-    }, [selectedCategory, organicOnly]);
-
-    useEffect(() => {
-        loadProducts();
-    }, [loadProducts]);
+    });
 
     const filteredProducts = useMemo(() => {
         let result = products;
@@ -124,8 +115,7 @@ export default function MarketplaceScreen({ navigation }: any) {
     };
 
     const onRefresh = () => {
-        setRefreshing(true);
-        loadProducts();
+        refetch();
     };
 
     const handleResetFilters = () => {
@@ -159,31 +149,60 @@ export default function MarketplaceScreen({ navigation }: any) {
 
     return (
         <View style={styles.container}>
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBar}>
-                    <Search size={18} color="#a8a29e" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder={t.searchPlaceholder}
-                        placeholderTextColor="#a8a29e"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
+            {/* Products Grid */}
+            <FlatList
+                data={filteredProducts}
+                renderItem={renderProduct}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                contentContainerStyle={styles.gridContainer}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#16a34a"
+                        progressViewOffset={140}
                     />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <X size={18} color="#a8a29e" />
-                        </TouchableOpacity>
-                    )}
+                }
+                ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>🥬</Text>
+                        <Text style={styles.emptyText}>{t.noResults}</Text>
+                    </View>
+                }
+            />
+
+            {/* Floating Glass Search Bar & Categories */}
+            <BlurView intensity={80} tint="light" style={styles.headerBlur}>
+                <View style={styles.searchContainer}>
+                    <View style={styles.searchBar}>
+                        <Search size={18} color="#a8a29e" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder={t.searchPlaceholder}
+                            placeholderTextColor="#a8a29e"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <X size={18} color="#a8a29e" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <TouchableOpacity
+                        style={[styles.filterBtn, showFilters && styles.filterBtnActive]}
+                        onPress={() => setShowFilters(!showFilters)}
+                    >
+                        <SlidersHorizontal size={18} color={showFilters ? '#fff' : '#78716c'} />
+                        {hasActiveFilters && <View style={styles.filterDot} />}
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                    style={[styles.filterBtn, showFilters && styles.filterBtnActive]}
-                    onPress={() => setShowFilters(!showFilters)}
-                >
-                    <SlidersHorizontal size={18} color={showFilters ? '#fff' : '#78716c'} />
-                    {hasActiveFilters && <View style={styles.filterDot} />}
-                </TouchableOpacity>
-            </View>
+
+                {/* Category Chips inside the Blur header */}
+                <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
+            </BlurView>
 
             {/* Expanded Filters Panel */}
             {showFilters && (
@@ -255,27 +274,6 @@ export default function MarketplaceScreen({ navigation }: any) {
                 </View>
             )}
 
-            {/* Category Chips */}
-            <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
-
-            {/* Products Grid */}
-            <FlatList
-                data={filteredProducts}
-                renderItem={renderProduct}
-                keyExtractor={(item) => item.id}
-                numColumns={2}
-                contentContainerStyle={styles.gridContainer}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#16a34a" />
-                }
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyIcon}>🥬</Text>
-                        <Text style={styles.emptyText}>{t.noResults}</Text>
-                    </View>
-                }
-            />
         </View>
     );
 }
@@ -291,11 +289,22 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: '#fafaf5',
     },
+    headerBlur: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        paddingTop: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(231, 229, 228, 0.5)',
+        zIndex: 10,
+    },
     searchContainer: {
         flexDirection: 'row',
         paddingHorizontal: 16,
-        paddingTop: 12,
         gap: 10,
+        marginBottom: 8,
     },
     searchBar: {
         flex: 1,
@@ -338,18 +347,21 @@ const styles = StyleSheet.create({
         backgroundColor: '#ef4444',
     },
     filtersPanel: {
-        marginHorizontal: 16,
-        marginTop: 10,
-        backgroundColor: '#ffffff',
+        position: 'absolute',
+        top: 130, // below header
+        left: 16,
+        right: 16,
+        zIndex: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderRadius: 16,
         padding: 16,
         borderWidth: 1,
         borderColor: '#e7e5e4',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
     },
     filterRow: {
         flexDirection: 'row',
@@ -443,7 +455,8 @@ const styles = StyleSheet.create({
         color: '#ef4444',
     },
     gridContainer: {
-        paddingBottom: 100,
+        paddingTop: 140, // Space for the floating header
+        paddingBottom: 110, // Space for the floating tab bar
     },
     cardWrapper: {
         flex: 1,

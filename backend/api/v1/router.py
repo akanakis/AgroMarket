@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from api.v1.routes import auth, products, orders, users, reviews, admin
+from api.v1.routes import auth, products, orders, users, reviews, admin, ws
 
 router = APIRouter(prefix="/api/v1")
 
@@ -9,3 +9,4 @@ router.include_router(orders.router)
 router.include_router(users.router)
 router.include_router(reviews.router)
 router.include_router(admin.router)
+router.include_router(ws.router)

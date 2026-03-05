@@ -1,37 +1,35 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Package, ChevronRight, ShoppingBag, Clock, CheckCircle, Truck } from 'lucide-react';
 import * as API from '@/services/apiService';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
+import { translations } from '@/utils/translations';
 import { OrderAPI } from '@/types';
 
 export default function OrdersPage() {
     const router = useRouter();
     const { user, accessToken } = useAuth();
-    const [orders, setOrders] = useState<OrderAPI[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { lang } = useLanguage();
+    const t = translations[lang];
+    const { data: orders = [], isLoading: loading } = useQuery({
+        queryKey: ['myOrders', user?.id],
+        queryFn: async () => {
+            const data = await API.fetchMyOrders(accessToken!);
+            data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            return data;
+        },
+        enabled: !!accessToken && user?.role === 'BUYER'
+    });
 
     useEffect(() => {
         if (user && user.role !== 'BUYER') {
             router.push('/');
-            return;
         }
-        if (accessToken) loadOrders();
-    }, [user, accessToken]);
-
-    const loadOrders = async () => {
-        try {
-            const data = await API.fetchMyOrders(accessToken!);
-            data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            setOrders(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [user, router]);
 
     if (loading) {
         return (
@@ -46,18 +44,17 @@ export default function OrdersPage() {
     return (
         <div className="min-h-screen bg-[#fafaf5] pt-24 pb-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-extrabold text-stone-900 mb-8">My Orders</h1>
+                <h1 className="text-3xl font-extrabold text-stone-900 mb-8">{t.myOrders}</h1>
 
                 {orders.length === 0 ? (
                     <div className="text-center py-16 bg-white rounded-2xl border border-stone-200 shadow-sm">
                         <ShoppingBag className="w-16 h-16 text-stone-300 mx-auto mb-4" />
-                        <h2 className="text-xl font-semibold text-stone-700">No orders yet</h2>
-                        <p className="text-stone-500 mt-2">Go to the marketplace and find some fresh products!</p>
+                        <h2 className="text-xl font-semibold text-stone-700">{t.noOrders}</h2>
                         <button
                             onClick={() => router.push('/')}
                             className="mt-6 bg-green-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-700 transition"
                         >
-                            Browse Marketplace
+                            {t.backToMarket}
                         </button>
                     </div>
                 ) : (
@@ -74,13 +71,13 @@ export default function OrdersPage() {
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-3">
-                                            <p className="font-bold text-stone-900">Order #{order.id}</p>
+                                            <p className="font-bold text-stone-900">{t.order} #{order.id}</p>
                                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColorBadge(order.status)}`}>
-                                                {order.status}
+                                                {String((t as any)[order.status.toLowerCase()] || order.status)}
                                             </span>
                                         </div>
                                         <p className="text-sm text-stone-500 mt-1">
-                                            {new Date(order.created_at).toLocaleDateString()} · {order.items.length} Items
+                                            {new Date(order.created_at).toLocaleDateString()} · {order.items.length} {t.items}
                                         </p>
                                     </div>
                                 </div>

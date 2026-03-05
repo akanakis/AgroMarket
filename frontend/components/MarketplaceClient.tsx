@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Product } from '../types';
 import { Search, SlidersHorizontal, ShoppingBag, Trash2, Plus, Minus, Filter, X, AlertTriangle } from 'lucide-react';
 import ProductCard from './ProductCard';
@@ -21,8 +22,6 @@ const MarketplaceClient: React.FC = () => {
     const { user, accessToken } = useAuth();
     const router = useRouter();
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
@@ -33,16 +32,11 @@ const MarketplaceClient: React.FC = () => {
 
     const t = translations[lang];
 
-    useEffect(() => {
-        loadProducts();
-    }, []);
-
-    const loadProducts = async () => {
-        try {
-            setLoading(true);
+    const { data: products = [], isLoading: loading } = useQuery({
+        queryKey: ['products'],
+        queryFn: async () => {
             const data = await API.fetchProducts();
-            // Map API data to Frontend Frontend
-            const convertedProducts: Product[] = data.map(p => ({
+            const convertedProducts: Product[] = data.map((p: any) => ({
                 id: p.id.toString(),
                 name: p.name,
                 description: p.description,
@@ -59,13 +53,9 @@ const MarketplaceClient: React.FC = () => {
                 rating: p.rating,
                 reviewCount: p.review_count
             }));
-            setProducts(convertedProducts);
-        } catch (error) {
-            console.error('Error loading products:', error);
-        } finally {
-            setLoading(false);
+            return convertedProducts;
         }
-    };
+    });
 
     const filteredProducts = useMemo(() => {
         return products.filter(product => {

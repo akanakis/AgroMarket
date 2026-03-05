@@ -4,10 +4,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../../context/AuthContext';
+import { useLanguage } from '../../../context/LanguageContext';
+import { translations } from '../../../utils/translations';
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
+  const { lang } = useLanguage();
+  const t = translations[lang];
 
   const [form, setForm] = useState({
     name: '',
@@ -57,13 +61,13 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-700">AgroMarket</h1>
-          <p className="text-gray-500 mt-1">Create your account</p>
+          <h1 className="text-3xl font-bold text-green-700">{t.appTitle}</h1>
+          <p className="text-gray-500 mt-1">{t.createAccountTitle}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.fullNameLabel}</label>
             <input
               name="name"
               type="text"
@@ -71,12 +75,12 @@ export default function RegisterPage() {
               value={form.name}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="Your name or farm name"
+              placeholder={t.fullNamePlaceholder}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.emailAddress}</label>
             <input
               name="email"
               type="email"
@@ -90,7 +94,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.password}</label>
             <input
               name="password"
               type="password"
@@ -99,12 +103,12 @@ export default function RegisterPage() {
               value={form.password}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="Min 8 chars, uppercase + digit"
+              placeholder={t.passwordPlaceholder}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.confirmPassword}</label>
             <input
               name="confirmPassword"
               type="password"
@@ -118,20 +122,20 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">I am a...</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.iAmA}</label>
             <select
               name="role"
               value={form.role}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="BUYER">Buyer — I want to purchase products</option>
-              <option value="PRODUCER">Producer — I want to sell products</option>
+              <option value="BUYER">{t.buyerRoleDesc}</option>
+              <option value="PRODUCER">{t.producerRoleDesc}</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.location}</label>
             <input
               name="location"
               type="text"
@@ -145,7 +149,7 @@ export default function RegisterPage() {
 
           {form.role === 'PRODUCER' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Farm name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.farmName}</label>
               <input
                 name="farm_name"
                 type="text"
@@ -153,7 +157,7 @@ export default function RegisterPage() {
                 value={form.farm_name}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Your farm or business name"
+                placeholder={t.farmNamePlaceholder}
               />
             </div>
           )}
@@ -169,14 +173,14 @@ export default function RegisterPage() {
             disabled={isLoading}
             className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors"
           >
-            {isLoading ? 'Creating account...' : 'Create account'}
+            {isLoading ? t.creatingAccount : t.createAccount}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?{' '}
+          {t.alreadyHaveAccount}{' '}
           <Link href="/auth/login" className="text-green-600 font-medium hover:underline">
-            Sign in
+            {t.signIn}
           </Link>
         </p>
       </div>

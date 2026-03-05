@@ -4,10 +4,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../../context/AuthContext';
+import { useLanguage } from '../../../context/LanguageContext';
+import { translations } from '../../../utils/translations';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const { lang } = useLanguage();
+  const t = translations[lang];
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,14 +36,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-700">AgroMarket</h1>
-          <p className="text-gray-500 mt-1">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-green-700">{t.appTitle}</h1>
+          <p className="text-gray-500 mt-1">{t.signInToAccount}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email address
+              {t.emailAddress}
             </label>
             <input
               id="email"
@@ -55,7 +59,7 @@ export default function LoginPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              {t.password}
             </label>
             <input
               id="password"
@@ -80,14 +84,14 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors"
           >
-            {isLoading ? 'Signing in...' : 'Sign in'}
+            {isLoading ? t.signingIn : t.signIn}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Don&apos;t have an account?{' '}
+          {t.dontHaveAccount}{' '}
           <Link href="/auth/register" className="text-green-600 font-medium hover:underline">
-            Create one
+            {t.createOne}
           </Link>
         </p>
 

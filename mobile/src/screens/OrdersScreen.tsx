@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Package, Star, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
@@ -31,13 +32,14 @@ import { useNavigation } from '@react-navigation/native';
 
 export default function OrdersScreen() {
     const navigation = useNavigation();
-    const { userProfile, currentUserId } = useAuth();
+    const { user, accessToken } = useAuth();
+    const userProfile = user;
+    const currentUserId = user?.id;
     const { lang } = useLanguage();
     const t = translations[lang];
 
-    const [orders, setOrders] = useState<EnrichedOrder[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    const queryClient = useQueryClient();
+
     const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
     const [reviewedItems, setReviewedItems] = useState<Set<string>>(new Set());
 
@@ -48,19 +50,19 @@ export default function OrdersScreen() {
         productName: string;
     }>({ visible: false, productId: 0, productName: '' });
 
-    const loadOrders = useCallback(async () => {
-        try {
+    const { data: orders = [], isLoading: loading, isFetching: refreshing, refetch } = useQuery({
+        queryKey: ['myOrders', currentUserId],
+        queryFn: async () => {
+            if (!accessToken) throw new Error("No access token");
             const [ordersData, productsData] = await Promise.all([
-                API.fetchOrders(),
+                API.fetchOrders(accessToken),
                 API.fetchProducts(),
             ]);
 
-            // Build product name lookup
             const productMap = new Map<number, string>();
-            productsData.forEach((p) => productMap.set(p.id, p.name));
+            productsData.forEach((p: API.ProductAPI) => productMap.set(p.id, p.name));
 
-            // Filter to only show orders for this user
-            const myOrders = ordersData
+            return ordersData
                 .filter((o) => {
                     if (o.customer_id && currentUserId) {
                         return o.customer_id === currentUserId;
@@ -74,19 +76,9 @@ export default function OrdersScreen() {
                         productName: productMap.get(item.product_id) || `Product #${item.product_id}`,
                     })),
                 }));
-
-            setOrders(myOrders);
-        } catch (err: any) {
-            Alert.alert(t.error, err.message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [currentUserId, userProfile?.name, t.error]);
-
-    useEffect(() => {
-        loadOrders();
-    }, [loadOrders]);
+        },
+        enabled: !!accessToken && (!!currentUserId || !!userProfile?.name)
+    });
 
     const toggleExpand = (orderId: number) => {
         setExpandedOrder(expandedOrder === orderId ? null : orderId);
@@ -98,14 +90,15 @@ export default function OrdersScreen() {
 
     const handleSubmitReview = async (rating: number, comment: string) => {
         try {
+            if (!accessToken) throw new Error("No access token");
             await API.createReview({
                 product_id: reviewModal.productId,
-                author: userProfile?.name || 'Anonymous',
                 rating,
                 comment,
-            });
+            }, accessToken);
             setReviewModal({ visible: false, productId: 0, productName: '' });
             setReviewedItems((prev) => new Set(prev).add(`${reviewModal.productId}`));
+            queryClient.invalidateQueries({ queryKey: ['myOrders'] });
             Alert.alert('✓', t.reviewSubmitted);
         } catch (err: any) {
             Alert.alert(t.error, err.message);
@@ -113,8 +106,7 @@ export default function OrdersScreen() {
     };
 
     const onRefresh = () => {
-        setRefreshing(true);
-        loadOrders();
+        refetch();
     };
 
     if (loading) {

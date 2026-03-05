@@ -8,6 +8,7 @@ import {
     Alert,
 } from 'react-native';
 import { Award, MapPin, Star } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
 import { translations } from '../utils/translations';
@@ -21,19 +22,13 @@ export default function ProducerProfileScreen({ route, navigation }: any) {
     const { addToCart } = useCart();
     const t = translations[lang];
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        loadProducerProducts();
-    }, []);
-
-    const loadProducerProducts = async () => {
-        try {
+    const { data: products = [], isLoading: loading } = useQuery({
+        queryKey: ['producerProducts', sellerName],
+        queryFn: async () => {
             const data = await API.fetchProducts();
-            const filtered = data
-                .filter((p) => p.seller_name === sellerName)
-                .map((p) => ({
+            return data
+                .filter((p: any) => p.seller_name === sellerName)
+                .map((p: any) => ({
                     id: String(p.id),
                     name: p.name,
                     description: p.description,
@@ -50,13 +45,8 @@ export default function ProducerProfileScreen({ route, navigation }: any) {
                     rating: p.rating,
                     reviewCount: p.review_count,
                 }));
-            setProducts(filtered);
-        } catch (err: any) {
-            Alert.alert(t.error, err.message);
-        } finally {
-            setLoading(false);
         }
-    };
+    });
 
     const avgRating = products.length > 0
         ? products.reduce((acc, p) => acc + p.rating, 0) / products.length

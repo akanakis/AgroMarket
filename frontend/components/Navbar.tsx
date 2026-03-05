@@ -7,11 +7,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSelector from './LanguageSelector';
+import { translations } from '../utils/translations';
 
 export default function Navbar() {
     const { user, logout } = useAuth();
     const { lang, setLang } = useLanguage();
     const router = useRouter();
+
+    const t = translations[lang];
 
     const handleLogout = async () => {
         await logout();
@@ -39,14 +42,14 @@ export default function Navbar() {
                             className="flex items-center gap-2 text-sm text-stone-600 hover:text-green-700 bg-white hover:bg-green-50 px-3 py-1.5 rounded-full border border-stone-200 transition-all"
                         >
                             <Package size={16} />
-                            <span className="hidden sm:inline">My Orders</span>
+                            <span className="hidden sm:inline">{t.myOrders}</span>
                         </Link>
                     )}
 
                     {user && (
                         <div className="hidden md:flex items-center gap-2 text-sm text-stone-600 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
                             <UserCircle size={16} />
-                            <span>Viewing as: <span className="font-semibold text-stone-800">{user.name}</span></span>
+                            <span>{t.viewingAs}: <span className="font-semibold text-stone-800">{user.name}</span></span>
                         </div>
                     )}
 
@@ -57,14 +60,14 @@ export default function Navbar() {
                                 className="flex items-center gap-2 text-sm font-bold text-stone-600 hover:text-green-700 px-3 py-2 rounded-lg transition-colors"
                             >
                                 <User size={18} />
-                                <span className="hidden sm:inline">Login</span>
+                                <span className="hidden sm:inline">{t.login}</span>
                             </Link>
                             <Link
                                 href="/auth/register"
                                 className="flex items-center gap-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 px-4 py-2 rounded-full shadow-md transition-colors"
                             >
                                 <Store size={18} />
-                                <span className="hidden sm:inline">Register</span>
+                                <span className="hidden sm:inline">{t.register}</span>
                             </Link>
                         </div>
                     )}
@@ -75,7 +78,7 @@ export default function Navbar() {
                             className="flex items-center gap-2 text-sm font-medium text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
                         >
                             <LogOut size={16} />
-                            <span className="hidden sm:inline">Logout</span>
+                            <span className="hidden sm:inline">{t.logout}</span>
                         </button>
                     )}
                 </div>

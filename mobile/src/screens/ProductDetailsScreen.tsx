@@ -10,7 +10,9 @@ import {
     ActivityIndicator,
     TextInput,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Star, Leaf, MapPin, Calendar, ShoppingBag, ChevronLeft, User } from 'lucide-react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -20,31 +22,26 @@ import * as API from '../services/apiService';
 
 export default function ProductDetailsScreen({ route, navigation }: any) {
     const { product } = route.params as { product: Product };
-    const { role, userProfile } = useAuth();
+    const { user, accessToken } = useAuth();
+    const role = user?.role;
+    const userProfile = user;
     const { addToCart } = useCart();
     const { lang } = useLanguage();
     const t = translations[lang];
 
+    const queryClient = useQueryClient();
+
     const [quantity, setQuantity] = useState(1);
-    const [reviews, setReviews] = useState<API.ReviewAPI[]>([]);
-    const [loadingReviews, setLoadingReviews] = useState(true);
     const [reviewText, setReviewText] = useState('');
     const [reviewRating, setReviewRating] = useState(5);
 
-    useEffect(() => {
-        loadReviews();
-    }, []);
-
-    const loadReviews = async () => {
-        try {
+    const { data: reviews = [], isLoading: loadingReviews } = useQuery({
+        queryKey: ['productReviews', product.id],
+        queryFn: async () => {
             const data = await API.fetchProductReviews(parseInt(product.id));
-            setReviews(data);
-        } catch (err) {
-            console.error('Failed to load reviews', err);
-        } finally {
-            setLoadingReviews(false);
+            return data;
         }
-    };
+    });
 
     const handleAddToCart = () => {
         addToCart(product, quantity);
@@ -54,14 +51,14 @@ export default function ProductDetailsScreen({ route, navigation }: any) {
     const handleSubmitReview = async () => {
         if (!reviewText.trim()) return;
         try {
+            if (!accessToken) throw new Error("No access token");
             await API.createReview({
                 product_id: parseInt(product.id),
-                author: userProfile?.name || t.guest,
                 rating: reviewRating,
                 comment: reviewText,
-            });
+            }, accessToken);
             setReviewText('');
-            loadReviews();
+            queryClient.invalidateQueries({ queryKey: ['productReviews', product.id] });
         } catch (err: any) {
             Alert.alert(t.error, err.message);
         }
@@ -77,13 +74,20 @@ export default function ProductDetailsScreen({ route, navigation }: any) {
                         style={styles.image}
                         defaultSource={require('../../assets/icon.png')}
                     />
-                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                        <ChevronLeft size={24} color="#1c1917" />
+                    <TouchableOpacity
+                        style={styles.backBtnContainer}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <BlurView intensity={60} tint="light" style={styles.blurBadge}>
+                            <ChevronLeft size={24} color="#1c1917" />
+                        </BlurView>
                     </TouchableOpacity>
                     {product.organic && (
-                        <View style={styles.organicBadge}>
-                            <Leaf size={14} color="#16a34a" />
-                            <Text style={styles.organicText}>{t.organic}</Text>
+                        <View style={styles.organicBadgeContainer}>
+                            <BlurView intensity={70} tint="light" style={styles.blurBadgeHorizontal}>
+                                <Leaf size={14} color="#16a34a" />
+                                <Text style={styles.organicText}>{t.organic}</Text>
+                            </BlurView>
                         </View>
                     )}
                 </View>
@@ -227,35 +231,32 @@ const styles = StyleSheet.create({
         height: 300,
         backgroundColor: '#f5f5f0',
     },
-    backBtn: {
+    backBtnContainer: {
         position: 'absolute',
         top: 50,
         left: 16,
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    blurBadge: {
         width: 40,
         height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.9)',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
     },
-    organicBadge: {
+    organicBadgeContainer: {
         position: 'absolute',
         top: 56,
         right: 16,
+        borderRadius: 14,
+        overflow: 'hidden',
+    },
+    blurBadgeHorizontal: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: '#f0fdf4',
         paddingHorizontal: 10,
         paddingVertical: 6,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#bbf7d0',
     },
     organicText: {
         fontSize: 12,

@@ -12,6 +12,7 @@ import {
     TouchableWithoutFeedback,
     Keyboard,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { CreditCard, ShieldCheck } from 'lucide-react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
@@ -92,7 +93,11 @@ export default function PaymentSimulatorModal({
             onRequestClose={!isProcessing ? onClose : undefined}
         >
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.overlay}>
+                <BlurView
+                    intensity={40}
+                    tint="dark"
+                    style={styles.overlay}
+                >
                     <KeyboardAvoidingView
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                         style={styles.container}
@@ -194,7 +199,7 @@ export default function PaymentSimulatorModal({
                             </View>
                         </View>
                     </KeyboardAvoidingView>
-                </View>
+                </BlurView>
             </TouchableWithoutFeedback>
         </Modal>
     );
@@ -203,8 +208,8 @@ export default function PaymentSimulatorModal({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.2)', // Light tint below the blur
     },
     container: {
         width: '100%',

@@ -13,6 +13,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { Trash2, Minus, Plus, ShoppingBag, CreditCard, Banknote, Check } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -25,6 +26,8 @@ export default function CartScreen({ navigation }: any) {
     const { cart, removeFromCart, updateCartQuantity, clearCart, cartTotal } = useCart();
     const { lang } = useLanguage();
     const t = translations[lang];
+
+    const queryClient = useQueryClient();
 
     const [showCheckout, setShowCheckout] = useState(false);
     const [fullName, setFullName] = useState(user?.name || '');
@@ -53,10 +56,14 @@ export default function CartScreen({ navigation }: any) {
 
             clearCart();
             setCompletedOrderId(newOrder.id);
-            setIsPaymentModalVisible(false);
             setOrderPlaced(true);
+            queryClient.invalidateQueries({ queryKey: ['myOrders'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
         } catch (err: any) {
             Alert.alert(t.error, err.message);
+        } finally {
+            setIsPaymentModalVisible(false);
         }
     };
 

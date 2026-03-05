@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react'; // Kept only what might be used, though ProducerDashboard now handles icons
 import ProducerDashboard from './ProducerDashboard';
 import BuyerOrderTracker from './BuyerOrderTracker';
@@ -19,9 +20,7 @@ const DashboardClient: React.FC = () => {
     const router = useRouter();
     const t = translations[lang];
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
 
     // Local state for modal/editing
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -34,17 +33,9 @@ const DashboardClient: React.FC = () => {
         }
     }, [user, router]);
 
-    useEffect(() => {
-        if (user?.id && user?.role === 'PRODUCER') {
-            loadData();
-        } else {
-            setLoading(false);
-        }
-    }, [user?.id, user?.role]);
-
-    const loadData = async () => {
-        try {
-            setLoading(true);
+    const { data: dashboardData, isLoading: loading } = useQuery({
+        queryKey: ['dashboardData', user?.id, user?.role],
+        queryFn: async () => {
             const [productsData, ordersData] = await Promise.all([
                 API.fetchProducts(),
                 user?.role === 'PRODUCER' && user?.id
@@ -54,8 +45,8 @@ const DashboardClient: React.FC = () => {
 
             // Filter products for this producer
             const myProducts = productsData
-                .filter(p => p.seller_id === user?.id)
-                .map(p => ({
+                .filter((p: any) => p.seller_id === user?.id)
+                .map((p: any) => ({
                     id: p.id.toString(),
                     name: p.name,
                     description: p.description,
@@ -73,9 +64,7 @@ const DashboardClient: React.FC = () => {
                     reviewCount: p.review_count
                 }));
 
-            setProducts(myProducts);
-
-            const myOrders = ordersData.map(o => ({
+            const myOrders = ordersData.map((o: any) => ({
                 id: o.id.toString(),
                 items: [], // Fetch items details if needed
                 total: o.total,
@@ -84,19 +73,19 @@ const DashboardClient: React.FC = () => {
                 status: o.status as 'Pending' | 'Completed',
                 rating: o.rating || undefined
             }));
-            setOrders(myOrders);
 
-        } catch (error) {
-            console.error('Error loading dashboard data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+            return { products: myProducts, orders: myOrders };
+        },
+        enabled: !!user?.id && !!accessToken
+    });
+
+    const products = dashboardData?.products || [];
+    const orders = dashboardData?.orders || [];
 
     const handleUpdateStatus = async (orderId: string, newStatus: string) => {
         try {
             await API.updateOrderStatus(parseInt(orderId), newStatus, accessToken!);
-            loadData(); // Refresh to show new status
+            queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
         } catch (error) {
             console.error('Failed to update status:', error);
             alert('Failed to update status');
@@ -105,15 +94,14 @@ const DashboardClient: React.FC = () => {
 
     const handleAddProduct = async (formData: any) => { // Type properly or use any for speed
         // Call API
-        // Reload data
         setIsAddModalOpen(false);
-        loadData();
+        queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
     };
 
     const handleDeleteProduct = async (id: string) => {
         if (window.confirm('Delete this product?')) {
             await API.deleteProduct(parseInt(id), accessToken!);
-            loadData();
+            queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
         }
     };
 
@@ -142,7 +130,7 @@ const DashboardClient: React.FC = () => {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onProductAdded={() => {
-                    loadData();
+                    queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
                     setIsAddModalOpen(false);
                 }}
                 sellerId={user?.id || 0}

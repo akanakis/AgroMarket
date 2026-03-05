@@ -22,7 +22,9 @@ const CATEGORIES = ['Vegetables', 'Fruits', 'Dairy & Eggs', 'Honey & Jams', 'Her
 const UNITS = ['kg', 'piece', 'bunch', 'liter', 'jar', 'bottle', 'dozen'];
 
 export default function AddProductScreen({ navigation }: any) {
-    const { userProfile, currentUserId } = useAuth();
+    const { user, accessToken } = useAuth();
+    const userProfile = user;
+    const currentUserId = user?.id;
     const { lang } = useLanguage();
     const t = translations[lang];
 
@@ -52,6 +54,7 @@ export default function AddProductScreen({ navigation }: any) {
 
         setSubmitting(true);
         try {
+            if (!accessToken) throw new Error("No access token");
             await API.createProduct({
                 name: name.trim(),
                 description: description.trim(),
@@ -59,13 +62,11 @@ export default function AddProductScreen({ navigation }: any) {
                 unit,
                 category,
                 location: location.trim(),
-                seller_id: currentUserId || 1,
-                seller_name: userProfile?.name || 'Producer',
                 image_url: imageUrl.trim() || 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400',
                 organic,
                 harvest_date: harvestDate.trim() || new Date().toISOString().split('T')[0],
                 max_quantity: parseInt(maxQuantity) || 50,
-            });
+            }, accessToken);
 
             Alert.alert(`✓ ${t.productAdded}`, t.productAddedMsg, [
                 { text: t.ok, onPress: () => navigation.goBack() },

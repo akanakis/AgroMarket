@@ -16,6 +16,17 @@ const getBaseUrl = (): string => {
 
 const API_BASE_URL = getBaseUrl();
 
+export const getWsUrl = (): string => {
+    const envUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (envUrl) return envUrl.replace('http', 'ws');
+
+    if (__DEV__) {
+        if (Platform.OS === 'android') return 'ws://10.0.2.2:8000/api/v1';
+        return 'ws://localhost:8000/api/v1';
+    }
+    return 'ws://localhost:8000/api/v1';
+};
+
 // ==================== BASE CLIENT ====================
 
 async function apiCall<T>(endpoint: string, options?: RequestInit, token?: string | null): Promise<T> {

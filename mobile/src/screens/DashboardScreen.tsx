@@ -6,11 +6,13 @@ import {
     TouchableOpacity,
     StyleSheet,
     Alert,
+    AlertButton,
     ActivityIndicator,
     RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Package, TrendingUp, ShoppingBag, Star, Trash2, Plus } from 'lucide-react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
@@ -18,25 +20,26 @@ import { Product } from '../types';
 import * as API from '../services/apiService';
 
 export default function DashboardScreen({ navigation }: any) {
-    const { userProfile, currentUserId } = useAuth();
+    const { user, accessToken } = useAuth();
+    const userProfile = user;
+    const currentUserId = user?.id;
     const { lang } = useLanguage();
     const t = translations[lang];
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [orders, setOrders] = useState<API.OrderAPI[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    const queryClient = useQueryClient();
 
-    const loadData = useCallback(async () => {
-        try {
+    const { data, isLoading: loading, isFetching: refreshing, refetch } = useQuery({
+        queryKey: ['dashboard', currentUserId],
+        queryFn: async () => {
+            if (!accessToken) throw new Error("No token");
             const [productsData, ordersData] = await Promise.all([
                 API.fetchProducts(),
-                currentUserId ? API.fetchSellerOrders(currentUserId) : API.fetchOrders(),
+                currentUserId ? API.fetchSellerOrders(currentUserId, accessToken) : API.fetchOrders(accessToken),
             ]);
 
             const myProducts = productsData
-                .filter((p) => p.seller_name === userProfile?.name)
-                .map((p) => ({
+                .filter((p: any) => p.seller_name === userProfile?.name)
+                .map((p: any) => ({
                     id: String(p.id),
                     name: p.name,
                     description: p.description,
@@ -54,21 +57,13 @@ export default function DashboardScreen({ navigation }: any) {
                     reviewCount: p.review_count,
                 }));
 
-            setProducts(myProducts);
-            setOrders(ordersData);
-        } catch (err: any) {
-            Alert.alert(t.error, err.message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [userProfile?.name, currentUserId]);
+            return { products: myProducts, orders: ordersData };
+        },
+        enabled: !!accessToken && !!userProfile?.name
+    });
 
-    useEffect(() => {
-        if (userProfile?.name) {
-            loadData();
-        }
-    }, [loadData, userProfile?.name]);
+    const products = data?.products || [];
+    const orders = data?.orders || [];
 
     const handleDeleteProduct = async (id: string) => {
         Alert.alert(t.deleteProduct, t.deleteConfirm, [
@@ -78,8 +73,9 @@ export default function DashboardScreen({ navigation }: any) {
                 style: 'destructive',
                 onPress: async () => {
                     try {
-                        await API.deleteProduct(parseInt(id));
-                        setProducts((prev) => prev.filter((p) => p.id !== id));
+                        if (!accessToken) throw new Error("No access token");
+                        await API.deleteProduct(parseInt(id), accessToken);
+                        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
                     } catch (err: any) {
                         Alert.alert(t.error, err.message);
                     }
@@ -92,13 +88,14 @@ export default function DashboardScreen({ navigation }: any) {
         const statuses = ['Pending', 'Processing', 'Shipped', 'Completed', 'Cancelled'];
 
         // Add Refund option if Cancelled
-        const options = [...statuses.map(status => ({
+        const options: AlertButton[] = [...statuses.map(status => ({
             text: status,
             onPress: async () => {
                 if (status === currentStatus) return;
                 try {
-                    await API.updateOrderStatus(orderId, status);
-                    loadData();
+                    if (!accessToken) throw new Error("No access token");
+                    await API.updateOrderStatus(orderId, status, accessToken);
+                    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
                 } catch (err: any) {
                     Alert.alert('Error', 'Failed to update status');
                 }
@@ -111,9 +108,10 @@ export default function DashboardScreen({ navigation }: any) {
                 text: 'Issue Refund 💸',
                 onPress: async () => {
                     try {
-                        await API.refundOrder(orderId);
+                        if (!accessToken) throw new Error("No access token");
+                        await API.refundOrder(orderId, accessToken);
                         Alert.alert('Success', 'Refund issued successfully');
-                        loadData();
+                        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
                     } catch (err: any) {
                         Alert.alert('Error', err.message || 'Failed to refund order');
                     }
@@ -122,7 +120,7 @@ export default function DashboardScreen({ navigation }: any) {
             });
         }
 
-        options.push({ text: 'Cancel', style: 'cancel' as 'cancel' });
+        options.push({ text: 'Cancel', style: 'cancel' });
 
         Alert.alert(
             'Update Status',
@@ -132,8 +130,7 @@ export default function DashboardScreen({ navigation }: any) {
     };
 
     const onRefresh = () => {
-        setRefreshing(true);
-        loadData();
+        refetch();
     };
 
     // Analytics

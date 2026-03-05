@@ -4,6 +4,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ShoppingBag, Package, BarChart3, Store, Menu, Plus } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { StyleSheet } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -99,12 +101,22 @@ function MainTabs() {
                         fontSize: 18,
                     },
                     tabBarStyle: {
-                        backgroundColor: '#ffffff',
-                        borderTopColor: '#f5f5f0',
+                        position: 'absolute',
+                        backgroundColor: 'rgba(255, 255, 255, 0.4)', // Slightly transparent
+                        borderTopWidth: 0,                           // Hide standard border
+                        elevation: 0,                                // Remove shadow on Android
+                        shadowOpacity: 0,                           // Remove shadow on iOS
                         paddingBottom: 8,
                         paddingTop: 8,
                         height: 88,
                     },
+                    tabBarBackground: () => (
+                        <BlurView
+                            tint="light"
+                            intensity={80}
+                            style={StyleSheet.absoluteFill}
+                        />
+                    ),
                     tabBarActiveTintColor: '#16a34a',
                     tabBarInactiveTintColor: '#a8a29e',
                     tabBarLabelStyle: {

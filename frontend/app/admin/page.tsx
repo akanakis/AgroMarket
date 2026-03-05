@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
     Package, Users, TrendingUp, ShoppingCart,
@@ -11,6 +12,8 @@ import * as API from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import { cn } from '../../lib/utils';
+import { useLanguage } from '../../context/LanguageContext';
+import { translations } from '../../utils/translations';
 
 const STATUS_COLORS: Record<string, string> = {
     Completed: 'bg-green-100 text-green-700',
@@ -23,42 +26,35 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AdminPage() {
     const { user, accessToken } = useAuth();
     const router = useRouter();
+    const { lang } = useLanguage();
+    const t = translations[lang];
 
-    const [stats, setStats] = useState<API.AdminStats | null>(null);
-    const [orders, setOrders] = useState<API.OrderAPI[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data, isLoading: loading, refetch: loadData } = useQuery({
+        queryKey: ['adminData'],
+        queryFn: async () => {
+            const [statsData, ordersData, usersData] = await Promise.all([
+                API.fetchAdminStats(accessToken!),
+                API.fetchAllOrders(accessToken!, { limit: 100 }),
+                API.fetchAllUsers(accessToken!),
+            ]);
+            return { stats: statsData, orders: ordersData, allUsers: usersData };
+        },
+        enabled: !!accessToken && user?.role === 'ADMIN'
+    });
+
+    const stats = data?.stats || null;
+    const orders = data?.orders || [];
+    const allUsers = data?.allUsers || [];
+
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState<'orders' | 'users'>('orders');
-    const [allUsers, setAllUsers] = useState<API.UserProfile[]>([]);
 
     useEffect(() => {
-        if (!user) return;
-        if (user.role !== 'ADMIN') {
+        if (user && user.role !== 'ADMIN') {
             router.replace('/');
-            return;
         }
-        loadData();
-    }, [user, accessToken]);
-
-    const loadData = async () => {
-        if (!accessToken) return;
-        setLoading(true);
-        try {
-            const [statsData, ordersData, usersData] = await Promise.all([
-                API.fetchAdminStats(accessToken),
-                API.fetchAllOrders(accessToken, { limit: 100 }),
-                API.fetchAllUsers(accessToken),
-            ]);
-            setStats(statsData);
-            setOrders(ordersData);
-            setAllUsers(usersData);
-        } catch (err) {
-            console.error('Admin load failed', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [user, router]);
 
     const filteredOrders = orders.filter(order => {
         const matchesFilter = filter === 'All' || order.status === filter;
@@ -78,15 +74,15 @@ export default function AdminPage() {
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-stone-800">Admin Dashboard</h1>
-                        <p className="text-stone-500 mt-1">Platform overview and management</p>
+                        <h1 className="text-3xl font-bold text-stone-800">{t.adminDashboard}</h1>
+                        <p className="text-stone-500 mt-1">{t.adminDesc}</p>
                     </div>
                     <button
-                        onClick={loadData}
+                        onClick={() => loadData()}
                         className="flex items-center gap-2 px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 transition-colors text-sm font-medium"
                     >
                         <RefreshCw size={16} />
-                        Refresh
+                        {t.refresh}
                     </button>
                 </div>
 
@@ -102,27 +98,27 @@ export default function AdminPage() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                             <StatCard
                                 icon={<TrendingUp size={22} className="text-green-600" />}
-                                label="Total Revenue"
+                                label={t.totalRevenue}
                                 value={`€${stats.total_revenue.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                 bg="bg-green-50"
                             />
                             <StatCard
                                 icon={<ShoppingCart size={22} className="text-blue-600" />}
-                                label="Total Orders"
+                                label={t.totalOrders}
                                 value={stats.total_orders.toString()}
-                                sub={`${stats.orders_by_status.Completed ?? 0} completed`}
+                                sub={`${stats.orders_by_status.Completed ?? 0} ${t.completed.toLowerCase()}`}
                                 bg="bg-blue-50"
                             />
                             <StatCard
                                 icon={<Users size={22} className="text-purple-600" />}
-                                label="Total Users"
+                                label={t.totalUsers}
                                 value={stats.total_users.toString()}
                                 sub={`${stats.producers_count} producers · ${stats.buyers_count} buyers`}
                                 bg="bg-purple-50"
                             />
                             <StatCard
                                 icon={<Package size={22} className="text-orange-600" />}
-                                label="Products"
+                                label={t.products}
                                 value={stats.total_products.toString()}
                                 sub={`${stats.organic_products} organic`}
                                 bg="bg-orange-50"
@@ -133,13 +129,13 @@ export default function AdminPage() {
                         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6 mb-6">
                             <div className="flex items-center gap-2 mb-4">
                                 <Star size={16} className="text-stone-400" />
-                                <h2 className="font-semibold text-stone-700">Orders by Status</h2>
+                                <h2 className="font-semibold text-stone-700">{t.ordersByStatus}</h2>
                             </div>
                             <div className="flex gap-3 flex-wrap">
                                 {Object.entries(stats.orders_by_status).map(([status, count]) => (
                                     <div key={status} className="flex items-center gap-2">
                                         <span className={cn('px-3 py-1 rounded-full text-xs font-bold uppercase', STATUS_COLORS[status] ?? 'bg-stone-100 text-stone-600')}>
-                                            {status}
+                                            {String((t as any)[status.toLowerCase()] || status)}
                                         </span>
                                         <span className="text-sm font-semibold text-stone-700">{count}</span>
                                     </div>
@@ -153,7 +149,7 @@ export default function AdminPage() {
                                 <Star size={28} className="text-yellow-400" />
                                 <div>
                                     <p className="text-2xl font-bold text-stone-800">{stats.total_reviews}</p>
-                                    <p className="text-sm text-stone-500">Total Reviews</p>
+                                    <p className="text-sm text-stone-500">{t.totalReviews}</p>
                                 </div>
                             </div>
                             <div className="bg-white border border-stone-100 rounded-2xl p-5 shadow-sm flex items-center gap-4">
@@ -164,7 +160,7 @@ export default function AdminPage() {
                                             ? Math.round((stats.organic_products / stats.total_products) * 100)
                                             : 0}%
                                     </p>
-                                    <p className="text-sm text-stone-500">Organic Listings</p>
+                                    <p className="text-sm text-stone-500">{t.organicListings}</p>
                                 </div>
                             </div>
                         </div>
@@ -197,7 +193,7 @@ export default function AdminPage() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
                                 <input
                                     type="text"
-                                    placeholder="Search by Order ID or Customer..."
+                                    placeholder={t.searchOrder}
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
@@ -214,7 +210,7 @@ export default function AdminPage() {
                                             filter === s ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                                         )}
                                     >
-                                        {s}
+                                        {String((t as any)[s.toLowerCase()] || s)}
                                     </button>
                                 ))}
                             </div>
@@ -232,12 +228,12 @@ export default function AdminPage() {
                                     <table className="w-full text-left">
                                         <thead className="bg-stone-50 text-stone-500 text-xs font-semibold uppercase">
                                             <tr>
-                                                <th className="px-5 py-3">Order</th>
-                                                <th className="px-5 py-3">Date</th>
-                                                <th className="px-5 py-3">Customer</th>
-                                                <th className="px-5 py-3">Total</th>
-                                                <th className="px-5 py-3">Status</th>
-                                                <th className="px-5 py-3">Items</th>
+                                                <th className="px-5 py-3">{t.order}</th>
+                                                <th className="px-5 py-3">{t.date}</th>
+                                                <th className="px-5 py-3">{t.customer}</th>
+                                                <th className="px-5 py-3">{t.total}</th>
+                                                <th className="px-5 py-3">{t.status}</th>
+                                                <th className="px-5 py-3">{t.items}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-stone-100">
@@ -254,7 +250,7 @@ export default function AdminPage() {
                                                             'px-2 py-0.5 rounded-full text-xs font-bold uppercase',
                                                             STATUS_COLORS[order.status] ?? 'bg-stone-100 text-stone-600'
                                                         )}>
-                                                            {order.status}
+                                                            {String((t as any)[order.status.toLowerCase()] || order.status)}
                                                         </span>
                                                     </td>
                                                     <td className="px-5 py-3 text-sm text-stone-500">{order.items.length}</td>
@@ -263,7 +259,7 @@ export default function AdminPage() {
                                             {filteredOrders.length === 0 && (
                                                 <tr>
                                                     <td colSpan={6} className="px-5 py-12 text-center text-stone-400 text-sm">
-                                                        No orders found.
+                                                        {t.noOrders}
                                                     </td>
                                                 </tr>
                                             )}
@@ -289,11 +285,11 @@ export default function AdminPage() {
                                     <thead className="bg-stone-50 text-stone-500 text-xs font-semibold uppercase">
                                         <tr>
                                             <th className="px-5 py-3">ID</th>
-                                            <th className="px-5 py-3">Name</th>
-                                            <th className="px-5 py-3">Email</th>
-                                            <th className="px-5 py-3">Role</th>
-                                            <th className="px-5 py-3">Location</th>
-                                            <th className="px-5 py-3">Joined</th>
+                                            <th className="px-5 py-3">{t.name}</th>
+                                            <th className="px-5 py-3">{t.email}</th>
+                                            <th className="px-5 py-3">{t.role}</th>
+                                            <th className="px-5 py-3">{t.location}</th>
+                                            <th className="px-5 py-3">{t.joined}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-stone-100">
@@ -306,8 +302,8 @@ export default function AdminPage() {
                                                     <span className={cn(
                                                         'px-2 py-0.5 rounded-full text-xs font-bold uppercase',
                                                         u.role === 'ADMIN' ? 'bg-red-100 text-red-700' :
-                                                        u.role === 'PRODUCER' ? 'bg-green-100 text-green-700' :
-                                                        'bg-blue-100 text-blue-700'
+                                                            u.role === 'PRODUCER' ? 'bg-green-100 text-green-700' :
+                                                                'bg-blue-100 text-blue-700'
                                                     )}>
                                                         {u.role}
                                                     </span>

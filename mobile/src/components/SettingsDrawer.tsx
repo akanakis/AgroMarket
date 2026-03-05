@@ -34,7 +34,9 @@ interface Props {
 }
 
 export default function SettingsDrawer({ visible, onClose }: Props) {
-    const { role, userProfile, logout } = useAuth();
+    const { user, logout } = useAuth();
+    const role = user?.role;
+    const userProfile = user;
     const { lang, setLang } = useLanguage();
     const t = translations[lang];
 
