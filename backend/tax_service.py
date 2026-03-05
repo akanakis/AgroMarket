@@ -1,3 +1,4 @@
+import re
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -6,6 +7,19 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
 from datetime import datetime
+
+
+def _escape_xml(text: str) -> str:
+    """Escape characters that ReportLab interprets as XML markup in Paragraph."""
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
+
 
 # Basic Tax Service for Greek AADE Compliance (Mock)
 class TaxService:
@@ -24,7 +38,7 @@ class TaxService:
         date_str = order.created_at.strftime("%d/%m/%Y %H:%M")
         elements.append(Paragraph(f"<b>Order ID:</b> #{order.id}", styles['Normal']))
         elements.append(Paragraph(f"<b>Date:</b> {date_str}", styles['Normal']))
-        elements.append(Paragraph(f"<b>Customer:</b> {order.customer_name}", styles['Normal']))
+        elements.append(Paragraph(f"<b>Customer:</b> {_escape_xml(order.customer_name)}", styles['Normal']))
         elements.append(Paragraph(f"<b>Payment Method:</b> Credit Card (Authorized)", styles['Normal']))
         elements.append(Spacer(1, 20))
 

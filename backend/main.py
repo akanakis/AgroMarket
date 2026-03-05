@@ -40,8 +40,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AgroMarket API",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Disable interactive docs in production to reduce attack surface
+    docs_url=None if settings.PRODUCTION else "/docs",
+    redoc_url=None if settings.PRODUCTION else "/redoc",
     lifespan=lifespan,
 )
 
@@ -54,7 +55,7 @@ app.add_middleware(
     allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
 )
 
 # ==================== EXCEPTION HANDLERS ====================
@@ -68,6 +69,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "message": error["msg"],
         })
     logger.warning("Validation error on %s: %s", request.url.path, errors)
+
+    if settings.PRODUCTION:
+        # In production, return a generic error to avoid leaking field names
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"detail": "Invalid request data"},
+        )
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": "Validation error", "errors": errors},
