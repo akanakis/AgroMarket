@@ -2,11 +2,16 @@ import React, { useState } from 'react';
 import { X, CreditCard, Truck, Loader2, CheckCircle, MapPin, Phone, User } from 'lucide-react';
 import { CartItem } from '../types';
 import { translations, Language } from '../utils/translations';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { StripeCheckoutForm } from './StripeCheckoutForm';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPlaceOrder: () => void;
+  onPlaceOrder: (isCard: boolean) => Promise<string | void>;
   cartTotal: number;
   items: CartItem[];
   lang: Language;
@@ -14,20 +19,31 @@ interface CheckoutModalProps {
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onPlaceOrder, cartTotal, items, lang }) => {
   const t = translations[lang];
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card'>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
-    // onPlaceOrder handles the delay logic now in App.tsx, but if it didn't we'd do it here. 
-    // Since we put the delay in App.tsx, we rely on the prop function. 
-    // However, to show the loader immediately:
-    onPlaceOrder(); 
-    // We don't turn off processing here because the modal will likely close or unmount when order is placed.
-    // If we wanted to keep modal open, we'd need a success state inside the modal.
+    try {
+      const secret = await onPlaceOrder(paymentMethod === 'card');
+      if (secret) {
+        setClientSecret(secret);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setClientSecret(null);
+    onClose();
+    alert(t.orderSuccess);
   };
 
   return (
@@ -35,7 +51,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onPlaceO
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         <div className="p-6 border-b border-stone-100 flex justify-between items-center sticky top-0 bg-white z-10">
           <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2">
-            <CheckCircle className="text-green-600" size={24}/>
+            <CheckCircle className="text-green-600" size={24} />
             {t.checkoutTitle}
           </h3>
           <button onClick={onClose} disabled={isProcessing} className="text-stone-400 hover:text-stone-600 disabled:opacity-50">
@@ -60,64 +76,72 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onPlaceO
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <h4 className="font-semibold text-stone-700 mb-3 flex items-center gap-2">
-                <MapPin size={18} className="text-amber-500" />
-                {t.shippingDetails}
-              </h4>
-              <div className="space-y-3">
-                <div className="relative">
-                   <User className="absolute left-3 top-3 text-stone-400" size={16}/>
-                   <input required type="text" placeholder={t.fullName} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
-                </div>
-                <div className="relative">
-                   <MapPin className="absolute left-3 top-3 text-stone-400" size={16}/>
-                   <input required type="text" placeholder={t.address} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
-                </div>
-                <div className="relative">
-                   <Phone className="absolute left-3 top-3 text-stone-400" size={16}/>
-                   <input required type="tel" placeholder={t.phone} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+          {clientSecret ? (
+            <div className="p-4 bg-stone-50 rounded-xl">
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <StripeCheckoutForm clientSecret={clientSecret} onSuccess={handlePaymentSuccess} lang={lang} />
+              </Elements>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <h4 className="font-semibold text-stone-700 mb-3 flex items-center gap-2">
+                  <MapPin size={18} className="text-amber-500" />
+                  {t.shippingDetails}
+                </h4>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 text-stone-400" size={16} />
+                    <input required type="text" placeholder={t.fullName} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+                  </div>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 text-stone-400" size={16} />
+                    <input required type="text" placeholder={t.address} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+                  </div>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 text-stone-400" size={16} />
+                    <input required type="tel" placeholder={t.phone} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div>
-              <h4 className="font-semibold text-stone-700 mb-3 flex items-center gap-2">
-                <CreditCard size={18} className="text-amber-500" />
-                {t.paymentMethod}
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                <label className={`cursor-pointer p-3 border rounded-xl flex flex-col items-center gap-2 text-sm transition-all shadow-sm ${paymentMethod === 'cod' ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500' : 'border-stone-200 text-stone-600 hover:border-green-300'}`}>
-                  <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
-                  <Truck size={24} className="mb-1" />
-                  <span className="font-bold">{t.cod}</span>
-                </label>
-                <label className={`cursor-pointer p-3 border rounded-xl flex flex-col items-center gap-2 text-sm transition-all shadow-sm ${paymentMethod === 'card' ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500' : 'border-stone-200 text-stone-600 hover:border-green-300'}`}>
-                  <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
-                  <CreditCard size={24} className="mb-1" />
-                  <span className="font-bold">{t.card}</span>
-                </label>
+              <div>
+                <h4 className="font-semibold text-stone-700 mb-3 flex items-center gap-2">
+                  <CreditCard size={18} className="text-amber-500" />
+                  {t.paymentMethod}
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={`cursor-pointer p-3 border rounded-xl flex flex-col items-center gap-2 text-sm transition-all shadow-sm ${paymentMethod === 'cod' ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500' : 'border-stone-200 text-stone-600 hover:border-green-300'}`}>
+                    <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
+                    <Truck size={24} className="mb-1" />
+                    <span className="font-bold">{t.cod}</span>
+                  </label>
+                  <label className={`cursor-pointer p-3 border rounded-xl flex flex-col items-center gap-2 text-sm transition-all shadow-sm ${paymentMethod === 'card' ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500' : 'border-stone-200 text-stone-600 hover:border-green-300'}`}>
+                    <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
+                    <CreditCard size={24} className="mb-1" />
+                    <span className="font-bold">{t.card}</span>
+                  </label>
+                </div>
               </div>
-            </div>
 
-            <button 
-              type="submit" 
-              disabled={isProcessing}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-stone-400 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-lg"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 size={24} className="animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {t.placeOrder} - ${cartTotal.toFixed(2)}
-                </>
-              )}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-stone-400 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-lg"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 size={24} className="animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {t.placeOrder} - ${cartTotal.toFixed(2)}
+                  </>
+                )}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

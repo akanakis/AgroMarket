@@ -101,7 +101,7 @@ const MarketplaceClient: React.FC = () => {
         setPriceRange({ min: '', max: '' });
     };
 
-    const handlePlaceOrder = async () => {
+    const handlePlaceOrder = async (isCardMethod: boolean): Promise<string | void> => {
         if (!accessToken) {
             alert('Please log in to place an order');
             return;
@@ -115,8 +115,12 @@ const MarketplaceClient: React.FC = () => {
                 }))
             };
 
-            await API.createOrder(orderData, accessToken);
+            const order = await API.createOrder(orderData, accessToken);
             clearCart();
+
+            if (isCardMethod && order.client_secret) {
+                return order.client_secret;
+            }
 
             setIsCheckoutOpen(false);
             alert(t.orderSuccess);
@@ -124,6 +128,7 @@ const MarketplaceClient: React.FC = () => {
         } catch (error) {
             console.error('Error placing order:', error);
             alert('Failed to place order');
+            throw error;
         }
     };
 

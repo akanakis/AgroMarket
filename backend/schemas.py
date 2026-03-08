@@ -207,6 +207,7 @@ class Order(BaseModel):
     total: float
     status: str
     rating: Optional[int] = None
+    client_secret: Optional[str] = None
     created_at: datetime
     items: List[OrderItem] = []
 

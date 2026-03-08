@@ -58,9 +58,11 @@ class TaxService:
             
             total_vat += vat * item.quantity
             total_net += net * item.quantity
+            
+            product_name = _escape_xml(item.product.name) if getattr(item, 'product', None) else f"Product #{item.product_id}"
 
             data.append([
-                f"Product #{item.product_id}", # Ideally fetch name
+                product_name,
                 str(item.quantity),
                 f"{price:.2f}",
                 f"{(vat * item.quantity):.2f}",

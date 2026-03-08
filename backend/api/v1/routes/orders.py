@@ -9,6 +9,11 @@ from core.websockets import manager
 from tax_service import TaxService
 import models
 import schemas
+from fastapi import Request
+import stripe
+from core.config import settings
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -53,8 +58,31 @@ def create_order(
 
     db.commit()
     db.refresh(db_order)
-    return db_order
 
+    # Create Stripe Payment Intent for the order
+    if total > 0:
+        try:
+            if settings.STRIPE_SECRET_KEY == "sk_test_placeholder" or settings.STRIPE_SECRET_KEY.startswith("dummy"):
+                # Mock Stripe response for dummy testing
+                class MockIntent:
+                    id = f"pi_dummy_{db_order.id}"
+                    client_secret = f"pi_dummy_secret_{db_order.id}_secret_mock"
+                intent = MockIntent()
+            else:
+                intent = stripe.PaymentIntent.create(
+                    amount=int(total * 100),
+                    currency="eur",
+                    metadata={"order_id": db_order.id}
+                )
+            db_order.stripe_payment_intent_id = intent.id
+            db_order.client_secret = intent.client_secret
+            db.commit()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
+    else:
+        db_order.client_secret = None
+
+    return db_order
 
 @router.get("/", response_model=List[schemas.Order])
 def list_orders(
@@ -202,7 +230,7 @@ def get_order_invoice(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == order_id).first()
+    order = db.query(models.Order).options(joinedload(models.Order.items).joinedload(models.OrderItem.product)).filter(models.Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.customer_id != current_user.id:
@@ -234,3 +262,49 @@ def refund_order(
     order.status = "Refunded"
     db.commit()
     return {"message": "Refund issued successfully", "new_status": "Refunded"}
+
+
+@router.post("/webhook", include_in_schema=False)
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if event["type"] == "payment_intent.succeeded":
+        intent = event["data"]["object"]
+        order_id = intent.get("metadata", {}).get("order_id")
+        if order_id:
+            order = db.query(models.Order).filter(models.Order.id == int(order_id)).first()
+            if order:
+                order.status = "Paid"
+                db.commit()
+                # Notify user
+                await manager.send_personal_message(
+                    {
+                        "event": "order_updated",
+                        "order_id": order.id,
+                        "status": order.status,
+                        "message": f"Payment succeeded! Order #{order.id} is now Paid."
+                    },
+                    order.customer_id
+                )
+    elif event["type"] == "payment_intent.payment_failed":
+        intent = event["data"]["object"]
+        order_id = intent.get("metadata", {}).get("order_id")
+        if order_id:
+            order = db.query(models.Order).filter(models.Order.id == int(order_id)).first()
+            if order:
+                order.status = "Failed"
+                db.commit()
+
+    return {"status": "success"}

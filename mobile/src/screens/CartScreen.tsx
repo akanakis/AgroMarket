@@ -19,7 +19,7 @@ import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
 import * as API from '../services/apiService';
-import PaymentSimulatorModal from '../components/PaymentSimulatorModal';
+import { useStripe } from '@stripe/stripe-react-native';
 
 export default function CartScreen({ navigation }: any) {
     const { user, accessToken } = useAuth();
@@ -36,9 +36,9 @@ export default function CartScreen({ navigation }: any) {
     const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card'>('cod');
     const [orderPlaced, setOrderPlaced] = useState(false);
     const [completedOrderId, setCompletedOrderId] = useState<number | null>(null);
-    const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
+    const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-    const submitOrderToBackend = async () => {
+    const submitOrderToBackend = async (isCardMethod: boolean) => {
         try {
             if (!accessToken) throw new Error("Not authenticated");
             const newOrder = await API.createOrder({
@@ -54,6 +54,25 @@ export default function CartScreen({ navigation }: any) {
                 })),
             }, accessToken);
 
+            if (isCardMethod && newOrder.client_secret) {
+                const { error: initError } = await initPaymentSheet({
+                    merchantDisplayName: 'AgroMarket',
+                    paymentIntentClientSecret: newOrder.client_secret,
+                });
+
+                if (initError) {
+                    Alert.alert('Payment Initialization Error', initError.message);
+                    return;
+                }
+
+                const { error: presentError } = await presentPaymentSheet();
+
+                if (presentError) {
+                    Alert.alert('Payment Cancelled', presentError.message);
+                    return;
+                }
+            }
+
             clearCart();
             setCompletedOrderId(newOrder.id);
             setOrderPlaced(true);
@@ -62,8 +81,6 @@ export default function CartScreen({ navigation }: any) {
             queryClient.invalidateQueries({ queryKey: ['products'] });
         } catch (err: any) {
             Alert.alert(t.error, err.message);
-        } finally {
-            setIsPaymentModalVisible(false);
         }
     };
 
@@ -73,11 +90,7 @@ export default function CartScreen({ navigation }: any) {
             return;
         }
 
-        if (paymentMethod === 'card') {
-            setIsPaymentModalVisible(true);
-        } else {
-            submitOrderToBackend();
-        }
+        submitOrderToBackend(paymentMethod === 'card');
     };
 
     if (orderPlaced) {
@@ -224,13 +237,6 @@ export default function CartScreen({ navigation }: any) {
 
                     <View style={{ height: 40 }} />
                 </ScrollView>
-
-                <PaymentSimulatorModal
-                    visible={isPaymentModalVisible}
-                    amount={cartTotal}
-                    onClose={() => setIsPaymentModalVisible(false)}
-                    onSuccess={submitOrderToBackend}
-                />
             </KeyboardAvoidingView>
         );
     }

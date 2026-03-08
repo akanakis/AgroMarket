@@ -60,6 +60,7 @@ class Order(Base):
     total = Column(Float, nullable=False)
     status = Column(String(20), default="Pending", index=True)
     rating = Column(Integer, nullable=True)
+    stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

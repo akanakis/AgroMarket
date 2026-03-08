@@ -171,6 +171,7 @@ export interface OrderAPI {
   total: number;
   status: string;
   rating: number | null;
+  client_secret?: string;
   created_at: string;
   items: OrderItemAPI[];
 }
