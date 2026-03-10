@@ -7,9 +7,11 @@ on:
   push:
     paths:
       - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
   pull_request:
     paths:
       - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
 
 jobs:
   build-and-test:
