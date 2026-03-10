@@ -10,6 +10,7 @@ interface AuthContextType {
   accessToken: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  googleLogin: (token: string, role?: string) => Promise<void>;
   register: (payload: API.RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -67,6 +68,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const googleLogin = useCallback(async (token: string, role: string = 'BUYER') => {
+    const tokenRes = await API.googleLogin(token, role);
+    const profile = await API.getMe(tokenRes.access_token);
+    setAccessToken(tokenRes.access_token);
+    setUser(profile);
+    await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokenRes.access_token);
+    if (tokenRes.refresh_token) {
+      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokenRes.refresh_token);
+    }
+  }, []);
+
   const register = useCallback(async (payload: API.RegisterPayload) => {
     await API.register(payload);
     await login(payload.email, payload.password);
@@ -87,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [accessToken]);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, accessToken, isLoading, login, googleLogin, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from core.auth import get_current_user, require_role
+from core.auth import get_current_user, require_role, get_current_user_optional
 from core.websockets import manager
 from tax_service import TaxService
 import models
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 def create_order(
     order_in: schemas.OrderCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_role(["BUYER"])),
+    current_user: models.User = Depends(get_current_user_optional),
 ):
     # Validate products exist and calculate server-side total
     total = 0.0
@@ -37,9 +37,29 @@ def create_order(
             )
         total += product.price * item.quantity
 
+    if current_user:
+        if current_user.role != "BUYER":
+            raise HTTPException(status_code=403, detail="Only buyers can create orders")
+        customer_id = current_user.id
+        customer_name = current_user.name
+        guest_email = None
+        guest_phone = None
+        guest_address = None
+    else:
+        if not order_in.guest_email or not order_in.guest_phone or not order_in.guest_address:
+            raise HTTPException(status_code=400, detail="Guest email, phone, and address are required for unauthenticated orders")
+        customer_id = None
+        customer_name = None
+        guest_email = order_in.guest_email
+        guest_phone = order_in.guest_phone
+        guest_address = order_in.guest_address
+
     db_order = models.Order(
-        customer_id=current_user.id,
-        customer_name=current_user.name,
+        customer_id=customer_id,
+        customer_name=customer_name,
+        guest_email=guest_email,
+        guest_phone=guest_phone,
+        guest_address=guest_address,
         total=round(total, 2),
         status="Pending",
     )

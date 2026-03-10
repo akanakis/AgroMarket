@@ -89,6 +89,9 @@ export const register = (payload: RegisterPayload): Promise<UserProfile> =>
 export const login = (email: string, password: string): Promise<TokenResponse> =>
     apiCall('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 
+export const googleLogin = (token: string, role: string = "BUYER"): Promise<TokenResponse> =>
+    apiCall('/auth/google', { method: 'POST', body: JSON.stringify({ token, role }) });
+
 export const refreshTokenWithToken = (refreshToken: string): Promise<TokenResponse> =>
     apiCall('/auth/refresh/mobile', {
         method: 'POST',
@@ -185,6 +188,9 @@ export interface OrderAPI {
 
 export const createOrder = (order: {
     items: Array<{ product_id: number; quantity: number; price: number }>;
+    guest_email?: string;
+    guest_phone?: string;
+    guest_address?: string;
 }, token: string): Promise<OrderAPI> =>
     apiCall('/orders', { method: 'POST', body: JSON.stringify(order) }, token);
 

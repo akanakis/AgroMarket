@@ -82,6 +82,9 @@ export const register = (payload: RegisterPayload): Promise<UserProfile> =>
 export const login = (email: string, password: string): Promise<TokenResponse> =>
   apiClient('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 
+export const googleLogin = (token: string, role: string = "BUYER"): Promise<TokenResponse> =>
+  apiClient('/auth/google', { method: 'POST', body: JSON.stringify({ token, role }) });
+
 export const refreshToken = (): Promise<TokenResponse> =>
   apiClient('/auth/refresh', { method: 'POST' });
 
@@ -177,7 +180,12 @@ export interface OrderAPI {
 }
 
 export const createOrder = (
-  payload: { items: Array<{ product_id: number; quantity: number; price: number }> },
+  payload: {
+    items: Array<{ product_id: number; quantity: number; price: number }>;
+    guest_email?: string;
+    guest_phone?: string;
+    guest_address?: string;
+  },
   token: string,
 ): Promise<OrderAPI> =>
   apiClient('/orders', { method: 'POST', body: JSON.stringify(payload) }, token);

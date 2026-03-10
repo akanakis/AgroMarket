@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { translations } from '../../../utils/translations';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const router = useRouter();
   const { lang } = useLanguage();
   const t = translations[lang];
@@ -87,6 +88,34 @@ export default function LoginPage() {
             {isLoading ? t.signingIn : t.signIn}
           </button>
         </form>
+
+        <div className="mt-6 flex items-center justify-center">
+          <div className="border-t border-gray-300 flex-grow mr-3"></div>
+          <span className="text-gray-500 text-sm">Or</span>
+          <div className="border-t border-gray-300 flex-grow ml-3"></div>
+        </div>
+
+        <div className="mt-6 flex justify-center">
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              if (credentialResponse.credential) {
+                try {
+                  setError(null);
+                  setIsLoading(true);
+                  await googleLogin(credentialResponse.credential, "BUYER");
+                  router.push('/');
+                } catch (err: unknown) {
+                  setError(err instanceof Error ? err.message : 'Google login failed');
+                  setIsLoading(false);
+                }
+              }
+            }}
+            onError={() => {
+              setError('Google login failed');
+            }}
+            useOneTap
+          />
+        </div>
 
         <p className="text-center text-sm text-gray-500 mt-6">
           {t.dontHaveAccount}{' '}

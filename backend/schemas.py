@@ -44,6 +44,13 @@ class TokenData(BaseModel):
     role: str
 
 
+class GoogleLoginRequest(BaseModel):
+    token: str
+    role: Optional[Literal["BUYER", "PRODUCER"]] = "BUYER"
+    location: Optional[str] = "Unknown"
+    farm_name: Optional[str] = None
+
+
 # ==================== USER SCHEMAS ====================
 
 class UserProfileBase(BaseModel):
@@ -189,11 +196,14 @@ class OrderItem(BaseModel):
 
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate] = Field(min_length=1)
+    guest_email: Optional[EmailStr] = None
+    guest_phone: Optional[str] = Field(default=None, max_length=50)
+    guest_address: Optional[str] = Field(default=None, max_length=300)
     # customer_id, customer_name, total are set server-side from JWT + DB
 
 
 class OrderStatusUpdate(BaseModel):
-    status: Literal["Pending", "Processing", "Shipped", "Completed", "Cancelled"]
+    status: Literal["Pending", "Processing", "Shipped", "Completed", "Cancelled", "Refunded"]
 
 
 class OrderRating(BaseModel):
@@ -202,8 +212,11 @@ class OrderRating(BaseModel):
 
 class Order(BaseModel):
     id: int
-    customer_id: int
-    customer_name: str
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    guest_email: Optional[str] = None
+    guest_phone: Optional[str] = None
+    guest_address: Optional[str] = None
     total: float
     status: str
     rating: Optional[int] = None

@@ -13,9 +13,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sprout } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations, Language } from '../utils/translations';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const LANGUAGES: { code: Language; label: string }[] = [
     { code: 'en', label: '🇬🇧' },
@@ -27,9 +31,26 @@ const LANGUAGES: { code: Language; label: string }[] = [
 type Mode = 'login' | 'register';
 
 export default function LoginScreen() {
-    const { login, register } = useAuth();
+    const { login, register, googleLogin } = useAuth();
     const { lang, setLang } = useLanguage();
     const t = translations[lang];
+
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'dummy_ios',
+        androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'dummy_android',
+        webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 'dummy_web',
+    });
+
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { id_token } = response.params;
+            if (id_token) {
+                handleGoogleLogin(id_token);
+            }
+        } else if (response?.type === 'error') {
+            setError(response.error?.message || 'Google Sign-In Failed');
+        }
+    }, [response]);
 
     const [mode, setMode] = useState<Mode>('login');
     const [email, setEmail] = useState('');
@@ -53,6 +74,18 @@ export default function LoginScreen() {
             await login(email.trim(), password);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Login failed');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = async (idToken: string) => {
+        setError(null);
+        setIsLoading(true);
+        try {
+            await googleLogin(idToken, role);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Google login failed');
         } finally {
             setIsLoading(false);
         }
@@ -230,6 +263,26 @@ export default function LoginScreen() {
                             )}
                         </TouchableOpacity>
 
+                        <View style={styles.dividerBox}>
+                            <View style={styles.dividerLine} />
+                            <Text style={styles.dividerText}>Or</Text>
+                            <View style={styles.dividerLine} />
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.submitBtn, { backgroundColor: '#db4437', marginTop: 4 }]}
+                            onPress={() => promptAsync()}
+                            disabled={isLoading || !request}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.submitBtnText}>
+                                    Sign in with Google
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+
                         {mode === 'login' && (
                             <View style={styles.testHint}>
                                 <Text style={styles.testHintTitle}>Test accounts</Text>
@@ -288,6 +341,9 @@ const styles = StyleSheet.create({
         alignItems: 'center', marginTop: 4,
     },
     submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    dividerBox: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: '#e7e5e4' },
+    dividerText: { marginHorizontal: 8, color: '#a8a29e', fontSize: 14, fontWeight: '500' },
     testHint: {
         backgroundColor: '#f5f5f0', borderRadius: 10, padding: 12, marginTop: 8,
     },

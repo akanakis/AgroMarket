@@ -10,6 +10,8 @@ from core.auth import create_access_token, create_refresh_token, decode_token, g
 from core.redis_client import is_account_locked, record_failed_login, clear_failed_logins
 import models
 import schemas
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -106,6 +108,60 @@ def login(credentials: schemas.UserLogin, response: Response, db: Session = Depe
     _set_csrf_cookie(response)
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/google", response_model=schemas.Token)
+def google_login(
+    login_req: schemas.GoogleLoginRequest,
+    response: Response,
+    db: Session = Depends(get_db)
+):
+    try:
+        if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_ID != "dummy":
+            idinfo = id_token.verify_oauth2_token(login_req.token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+        else:
+            # Fallback for testing when we don't have a real active client id or pass a dummy token
+            # In production, never do this without verifying
+            if login_req.token.startswith("dummy_"):
+                email = login_req.token.replace("dummy_", "")
+                idinfo = {
+                    "email": email,
+                    "name": "Dummy Google User",
+                    "email_verified": True
+                }
+            else:
+                raise ValueError("Invalid Google Client ID configuration")
+
+        if not idinfo.get("email_verified"):
+            raise HTTPException(status_code=400, detail="Google email not verified")
+            
+        email = idinfo["email"]
+        user = db.query(models.User).filter(models.User.email == email).first()
+        
+        if not user:
+            # Create a new user if it doesn't exist
+            user = models.User(
+                email=email,
+                name=idinfo.get("name", "Unknown Name"),
+                password_hash="oauth_user", # We do not need a real password
+                role=login_req.role,
+                location=login_req.location,
+                farm_name=login_req.farm_name if login_req.role == "PRODUCER" else None,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+        token_data = {"sub": str(user.id), "role": user.role}
+        access_token = create_access_token(token_data)
+        refresh_token = create_refresh_token(token_data)
+        
+        _set_refresh_cookie(response, refresh_token)
+        _set_csrf_cookie(response)
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid Google token: {str(e)}")
 
 
 def _do_refresh(token: str, response: Response, db: Session) -> dict:

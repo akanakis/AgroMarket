@@ -11,7 +11,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPlaceOrder: (isCard: boolean) => Promise<string | void>;
+  onPlaceOrder: (isCard: boolean, guestData?: any) => Promise<string | void>;
   cartTotal: number;
   items: CartItem[];
   lang: Language;
@@ -29,7 +29,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onPlaceO
     e.preventDefault();
     setIsProcessing(true);
     try {
-      const secret = await onPlaceOrder(paymentMethod === 'card');
+      const formData = new FormData(e.target as HTMLFormElement);
+      const guestData = {
+        guest_email: formData.get('email') as string,
+        guest_phone: formData.get('phone') as string,
+        guest_address: formData.get('address') as string,
+      };
+
+      const secret = await onPlaceOrder(paymentMethod === 'card', guestData);
       if (secret) {
         setClientSecret(secret);
       }
@@ -92,15 +99,19 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onPlaceO
                 <div className="space-y-3">
                   <div className="relative">
                     <User className="absolute left-3 top-3 text-stone-400" size={16} />
-                    <input required type="text" placeholder={t.fullName} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+                    <input required name="fullName" type="text" placeholder={t.fullName} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
                   </div>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3 text-stone-400" size={16} />
-                    <input required type="text" placeholder={t.address} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+                    <input required name="address" type="text" placeholder={t.address} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
                   </div>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 text-stone-400" size={16} />
-                    <input required type="tel" placeholder={t.phone} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+                    <input required name="phone" type="tel" placeholder={t.phone} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
+                  </div>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 text-stone-400" size={16} />
+                    <input required name="email" type="email" placeholder={t.emailAddress || 'Email'} className="w-full pl-9 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm transition-all" />
                   </div>
                 </div>
               </div>

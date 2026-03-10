@@ -113,6 +113,39 @@ def test_login_unknown_email(client):
     assert response.status_code == 401
 
 
+# ==================== GOOGLE LOGIN ====================
+
+def test_google_login_success_new_user(client):
+    response = client.post("/api/v1/auth/google", json={
+        "token": "dummy_newgoogle@test.com",
+        "role": "BUYER"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+
+def test_google_login_success_existing_user(client, test_buyer):
+    response = client.post("/api/v1/auth/google", json={
+        "token": f"dummy_{test_buyer.email}",
+        "role": "BUYER"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+
+def test_google_login_invalid_dummy_token(client):
+    # Depending on implementation, might raise 400 or 401
+    response = client.post("/api/v1/auth/google", json={
+        "token": "invalid_token",
+        "role": "BUYER"
+    })
+    assert response.status_code == 400
+
+
 # ==================== ME ====================
 
 def test_get_me(client, buyer_headers):
@@ -140,15 +173,18 @@ def test_refresh_token(client, test_buyer):
     login_response = client.post(LOGIN_URL, json={"email": "buyer@test.com", "password": "Test1234!"})
     assert login_response.status_code == 200
 
+    csrf_token = client.cookies.get("csrf_token")
+
     # Refresh using the cookie
-    refresh_response = client.post(REFRESH_URL)
+    refresh_response = client.post(REFRESH_URL, headers={"X-CSRF-Token": csrf_token})
     assert refresh_response.status_code == 200
     data = refresh_response.json()
     assert "access_token" in data
 
 
 def test_refresh_no_cookie(client):
-    response = client.post(REFRESH_URL)
+    client.cookies.set("csrf_token", "dummy")
+    response = client.post(REFRESH_URL, headers={"X-CSRF-Token": "dummy"})
     assert response.status_code == 401
 
 

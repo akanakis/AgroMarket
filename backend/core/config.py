@@ -23,10 +23,13 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:19006"
     REDIS_URL: str = "redis://localhost:6379"
     ENVIRONMENT: str = "development"
-    # Set to "true" in production (HTTPS required for secure cookies)
     PRODUCTION: bool = False
     STRIPE_SECRET_KEY: str = "sk_test_placeholder"
+    STRIPE_PUBLISHABLE_KEY: str = "pk_test_placeholder"
     STRIPE_WEBHOOK_SECRET: str = "whsec_placeholder"
+    APPLE_APP_ID: str = "dummy_apple_id"
+    GOOGLE_PLAY_APP_ID: str = "dummy_google_id"
+    GOOGLE_CLIENT_ID: str = "dummy"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

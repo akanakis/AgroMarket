@@ -55,8 +55,11 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    customer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    customer_name = Column(String(200), nullable=False)
+    customer_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    customer_name = Column(String(200), nullable=True)
+    guest_email = Column(String(254), nullable=True)
+    guest_phone = Column(String(50), nullable=True)
+    guest_address = Column(String(300), nullable=True)
     total = Column(Float, nullable=False)
     status = Column(String(20), default="Pending", index=True)
     rating = Column(Integer, nullable=True)

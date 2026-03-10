@@ -101,21 +101,18 @@ const MarketplaceClient: React.FC = () => {
         setPriceRange({ min: '', max: '' });
     };
 
-    const handlePlaceOrder = async (isCardMethod: boolean): Promise<string | void> => {
-        if (!accessToken) {
-            alert('Please log in to place an order');
-            return;
-        }
+    const handlePlaceOrder = async (isCardMethod: boolean, guestData?: any): Promise<string | void> => {
         try {
             const orderData = {
                 items: cart.map(item => ({
                     product_id: parseInt(item.id),
                     quantity: item.quantity,
                     price: item.price
-                }))
+                })),
+                ...(!accessToken ? guestData : {})
             };
 
-            const order = await API.createOrder(orderData, accessToken);
+            const order = await API.createOrder(orderData, accessToken || '');
             clearCart();
 
             if (isCardMethod && order.client_secret) {

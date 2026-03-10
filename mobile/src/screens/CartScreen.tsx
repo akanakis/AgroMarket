@@ -33,6 +33,7 @@ export default function CartScreen({ navigation }: any) {
     const [fullName, setFullName] = useState(user?.name || '');
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
+    const [email, setEmail] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card'>('cod');
     const [orderPlaced, setOrderPlaced] = useState(false);
     const [completedOrderId, setCompletedOrderId] = useState<number | null>(null);
@@ -40,8 +41,7 @@ export default function CartScreen({ navigation }: any) {
 
     const submitOrderToBackend = async (isCardMethod: boolean) => {
         try {
-            if (!accessToken) throw new Error("Not authenticated");
-            const newOrder = await API.createOrder({
+            const orderPayload: any = {
                 // @ts-ignore
                 customer_name: fullName,
                 total: cartTotal,
@@ -52,7 +52,15 @@ export default function CartScreen({ navigation }: any) {
                     quantity: item.quantity,
                     price: item.price,
                 })),
-            }, accessToken);
+            };
+
+            if (!accessToken) {
+                orderPayload.guest_email = email;
+                orderPayload.guest_phone = phone;
+                orderPayload.guest_address = address;
+            }
+
+            const newOrder = await API.createOrder(orderPayload, accessToken || '');
 
             if (isCardMethod && newOrder.client_secret) {
                 const { error: initError } = await initPaymentSheet({
@@ -85,7 +93,7 @@ export default function CartScreen({ navigation }: any) {
     };
 
     const handlePlaceOrder = () => {
-        if (!fullName.trim() || !address.trim() || !phone.trim()) {
+        if (!fullName.trim() || !address.trim() || !phone.trim() || (!accessToken && !email.trim())) {
             Alert.alert(t.missingInfo, t.missingInfoMsg);
             return;
         }
@@ -180,6 +188,21 @@ export default function CartScreen({ navigation }: any) {
                         placeholder={t.fullName}
                         placeholderTextColor="#a8a29e"
                     />
+
+                    {!accessToken && (
+                        <>
+                            <Text style={styles.inputLabel}>Email</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="Email"
+                                placeholderTextColor="#a8a29e"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                        </>
+                    )}
 
                     <Text style={styles.inputLabel}>{t.address}</Text>
                     <TextInput

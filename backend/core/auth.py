@@ -63,6 +63,30 @@ def get_current_user(
     return user
 
 
+async def get_current_user_optional(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Optional[models.User]:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ")[1]
+    
+    try:
+        payload = decode_token(token)
+        if payload.get("type") != "access":
+            return None
+            
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+            
+        user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+        return user
+    except Exception:
+        return None
+
+
 def require_role(allowed_roles: list[str]):
     """Dependency factory that checks the current user has an allowed role."""
     def role_checker(current_user: models.User = Depends(get_current_user)) -> models.User:

@@ -35,7 +35,7 @@ def test_create_order_as_producer_forbidden(client, producer_headers, test_produ
 
 def test_create_order_unauthenticated(client, test_product):
     response = client.post(ORDERS_URL, json=order_payload(test_product.id))
-    assert response.status_code == 401
+    assert response.status_code == 400
 
 
 def test_create_order_product_not_found(client, buyer_headers):
@@ -46,6 +46,32 @@ def test_create_order_product_not_found(client, buyer_headers):
 def test_create_order_empty_items(client, buyer_headers):
     response = client.post(ORDERS_URL, json={"items": []}, headers=buyer_headers)
     assert response.status_code == 422
+
+
+def test_create_order_guest_success(client, test_product):
+    payload = {
+        "items": [{"product_id": test_product.id, "quantity": 1, "price": 5.0}],
+        "guest_email": "guest@test.com",
+        "guest_phone": "1234567890",
+        "guest_address": "123 Guest St"
+    }
+    response = client.post(ORDERS_URL, json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "Pending"
+    assert data["customer_id"] is None
+    assert data["guest_email"] == "guest@test.com"
+
+
+def test_create_order_guest_missing_fields(client, test_product):
+    payload = {
+        "items": [{"product_id": test_product.id, "quantity": 1, "price": 5.0}],
+        "guest_email": "guest@test.com"
+        # missing phone and address
+    }
+    response = client.post(ORDERS_URL, json=payload)
+    assert response.status_code == 400
+    assert "Guest email, phone, and address are required" in response.json()["detail"]
 
 
 # ==================== LIST ====================
