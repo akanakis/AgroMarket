@@ -109,9 +109,9 @@ export default function MarketplaceScreen({ navigation }: any) {
         return result;
     }, [products, searchQuery, minPrice, maxPrice, sortOption]);
 
-    const handleAddToCart = (product: Product) => {
-        addToCart(product, 1);
-        Alert.alert('✓', `${product.name} ${t.addedToCart}`);
+    const handleAddToCart = (product: Product, quantity: number) => {
+        addToCart(product, quantity);
+        Alert.alert('✓', `${quantity}x ${product.name} ${t.addedToCart}`);
     };
 
     const onRefresh = () => {
@@ -134,7 +134,7 @@ export default function MarketplaceScreen({ navigation }: any) {
             <ProductCard
                 product={item}
                 onPress={() => navigation.navigate('ProductDetails', { product: item })}
-                onAddToCart={() => handleAddToCart(item)}
+                onAddToCart={(qty) => handleAddToCart(item, qty)}
             />
         </View>
     );

@@ -220,24 +220,34 @@ def seed_database():
         db.commit()
         db.refresh(test_product)
 
-        test_statuses = ["Pending", "Processing", "Shipped", "Completed", "Cancelled"]
+        test_statuses = ["Pending", "Processing", "Shipped", "Completed", "Cancelled", "Completed", "Pending"]
         for i, order_status in enumerate(test_statuses):
             order = models.Order(
                 customer_id=test_buyer.id,
                 customer_name=test_buyer.name,
-                total=round(10.0 * (i + 1), 2),
+                total=round(15.0 * (i + 1), 2),
                 status=order_status,
                 created_at=datetime.now() - timedelta(days=i),
             )
             db.add(order)
             db.commit()
             db.refresh(order)
+            
+            # Add a couple of items to the test order
             db.add(models.OrderItem(
                 order_id=order.id,
                 product_id=test_product.id,
                 quantity=i + 1,
-                price=5.0,
+                price=product.price if 'product' in locals() else 5.0,
             ))
+            
+            if len(products) > 0:
+                db.add(models.OrderItem(
+                    order_id=order.id,
+                    product_id=random.choice(products).id,
+                    quantity=random.randint(1, 3),
+                    price=10.0,
+                ))
 
         db.commit()
 

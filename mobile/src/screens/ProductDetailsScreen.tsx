@@ -43,6 +43,20 @@ export default function ProductDetailsScreen({ route, navigation }: any) {
         }
     });
 
+    const { data: myOrders = [] } = useQuery({
+        queryKey: ['myOrders'],
+        queryFn: async () => {
+            if (!accessToken) return [];
+            return await API.fetchOrders(accessToken);
+        },
+        enabled: !!accessToken
+    });
+
+    // Determine if the user has a completed order for this product
+    const canReview = Boolean(myOrders.find((order: API.OrderAPI) => 
+        order.status === 'Completed' && order.items.some(item => item.product_id === parseInt(product.id))
+    ));
+
     const handleAddToCart = () => {
         addToCart(product, quantity);
         Alert.alert('✓', `${product.name} ${t.addedToCart}`);
@@ -163,7 +177,7 @@ export default function ProductDetailsScreen({ route, navigation }: any) {
                     )}
 
                     {/* Write Review */}
-                    {role && (
+                    {role && canReview && (
                         <View style={styles.writeReview}>
                             <Text style={styles.writeReviewTitle}>Write a Review</Text>
                             <View style={styles.starSelector}>
@@ -201,7 +215,7 @@ export default function ProductDetailsScreen({ route, navigation }: any) {
                     >
                         <Text style={styles.qtyBtnText}>−</Text>
                     </TouchableOpacity>
-                    <Text style={styles.qtyValue}>{quantity}</Text>
+                    <Text style={styles.qtyValue}>{quantity} {product.unit}</Text>
                     <TouchableOpacity
                         style={styles.qtyBtn}
                         onPress={() => setQuantity(Math.min(product.maxQuantity, quantity + 1))}
@@ -489,7 +503,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: '#1c1917',
-        minWidth: 24,
+        minWidth: 60,
         textAlign: 'center',
     },
     addToCartBtn: {

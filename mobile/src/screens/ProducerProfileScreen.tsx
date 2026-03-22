@@ -52,9 +52,9 @@ export default function ProducerProfileScreen({ route, navigation }: any) {
         ? products.reduce((acc, p) => acc + p.rating, 0) / products.length
         : 0;
 
-    const handleAddToCart = (product: Product) => {
-        addToCart(product, 1);
-        Alert.alert('✓', `${product.name} ${t.addedToCart}`);
+    const handleAddToCart = (product: Product, quantity: number) => {
+        addToCart(product, quantity);
+        Alert.alert('✓', `${quantity}x ${product.name} ${t.addedToCart}`);
     };
 
     return (
@@ -104,7 +104,7 @@ export default function ProducerProfileScreen({ route, navigation }: any) {
                         <ProductCard
                             product={item}
                             onPress={() => navigation.navigate('ProductDetails', { product: item })}
-                            onAddToCart={() => handleAddToCart(item)}
+                            onAddToCart={(qty) => handleAddToCart(item, qty)}
                         />
                     </View>
                 )}

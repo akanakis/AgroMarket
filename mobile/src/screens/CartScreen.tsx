@@ -63,21 +63,26 @@ export default function CartScreen({ navigation }: any) {
             const newOrder = await API.createOrder(orderPayload, accessToken || '');
 
             if (isCardMethod && newOrder.client_secret) {
-                const { error: initError } = await initPaymentSheet({
-                    merchantDisplayName: 'AgroMarket',
-                    paymentIntentClientSecret: newOrder.client_secret,
-                });
+                if (newOrder.client_secret.includes('dummy')) {
+                    // Simulate Stripe payment success without hitting Apple/Google Pay SDK limits
+                    Alert.alert('Mock Payment Successful', 'Stripe payment was simulated successfully using test records.');
+                } else {
+                    const { error: initError } = await initPaymentSheet({
+                        merchantDisplayName: 'AgroMarket',
+                        paymentIntentClientSecret: newOrder.client_secret,
+                    });
 
-                if (initError) {
-                    Alert.alert('Payment Initialization Error', initError.message);
-                    return;
-                }
+                    if (initError) {
+                        Alert.alert('Payment Initialization Error', initError.message);
+                        return;
+                    }
 
-                const { error: presentError } = await presentPaymentSheet();
+                    const { error: presentError } = await presentPaymentSheet();
 
-                if (presentError) {
-                    Alert.alert('Payment Cancelled', presentError.message);
-                    return;
+                    if (presentError) {
+                        Alert.alert('Payment Cancelled', presentError.message);
+                        return;
+                    }
                 }
             }
 
@@ -245,8 +250,10 @@ export default function CartScreen({ navigation }: any) {
                             </Text>
                         </TouchableOpacity>
                     </View>
+                </ScrollView>
 
-                    {/* Place Order Button */}
+                {/* Fixed Bottom Action Bar */}
+                <View style={styles.checkoutBottomBar}>
                     <TouchableOpacity style={styles.placeOrderBtn} onPress={handlePlaceOrder} activeOpacity={0.85}>
                         <Text style={styles.placeOrderText}>{t.placeOrder} · €{cartTotal.toFixed(2)}</Text>
                     </TouchableOpacity>
@@ -257,9 +264,7 @@ export default function CartScreen({ navigation }: any) {
                     >
                         <Text style={styles.cancelText}>{t.backToCart}</Text>
                     </TouchableOpacity>
-
-                    <View style={{ height: 40 }} />
-                </ScrollView>
+                </View>
             </KeyboardAvoidingView>
         );
     }
@@ -435,7 +440,7 @@ const styles = StyleSheet.create({
     },
     bottomBar: {
         position: 'absolute',
-        bottom: 0,
+        bottom: 85,
         left: 0,
         right: 0,
         backgroundColor: '#ffffff',
@@ -446,7 +451,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 14,
-        paddingBottom: 32,
+        zIndex: 100,
+        elevation: 10,
     },
     totalLabel: {
         fontSize: 12,
@@ -478,6 +484,15 @@ const styles = StyleSheet.create({
     // Checkout styles
     checkoutContent: {
         padding: 20,
+        paddingBottom: 40,
+    },
+    checkoutBottomBar: {
+        backgroundColor: '#ffffff',
+        borderTopWidth: 1,
+        borderTopColor: '#e7e5e4',
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     },
     checkoutTitle: {
         fontSize: 24,

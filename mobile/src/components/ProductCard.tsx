@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { Leaf, MapPin, Star, Plus } from 'lucide-react-native';
+import { Leaf, MapPin, Star, ShoppingBag } from 'lucide-react-native';
 import { Product } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
@@ -8,12 +8,13 @@ import { translations } from '../utils/translations';
 interface Props {
     product: Product;
     onPress: () => void;
-    onAddToCart: () => void;
+    onAddToCart: (quantity: number) => void;
 }
 
 export default function ProductCard({ product, onPress, onAddToCart }: Props) {
     const { lang } = useLanguage();
     const t = translations[lang];
+    const [quantity, setQuantity] = useState(1);
 
     return (
         <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
@@ -42,25 +43,49 @@ export default function ProductCard({ product, onPress, onAddToCart }: Props) {
                 </View>
 
                 <View style={styles.bottomRow}>
-                    <View>
-                        <Text style={styles.price}>€{product.price.toFixed(2)}<Text style={styles.unit}>/{product.unit}</Text></Text>
+                    <View style={styles.priceStatsRow}>
+                        <Text style={styles.price}>€{product.price.toFixed(2)}</Text>
                         <View style={styles.ratingRow}>
                             <Star size={12} color="#f59e0b" fill="#f59e0b" />
                             <Text style={styles.ratingText}>{product.rating.toFixed(1)}</Text>
-                            <Text style={styles.reviewCount}>({product.reviewCount})</Text>
                         </View>
                     </View>
 
-                    <TouchableOpacity
-                        style={styles.addBtn}
-                        onPress={(e) => {
-                            e.stopPropagation?.();
-                            onAddToCart();
-                        }}
-                        activeOpacity={0.8}
-                    >
-                        <Plus size={20} color="#fff" />
-                    </TouchableOpacity>
+                    <View style={styles.actionRow}>
+                        <View style={styles.quantityControl}>
+                            <TouchableOpacity
+                                style={styles.qtyBtn}
+                                onPress={(e) => {
+                                    e.stopPropagation?.();
+                                    setQuantity(Math.max(1, quantity - 1));
+                                }}
+                            >
+                                <Text style={styles.qtyBtnText}>−</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.qtyValue}>{quantity} {product.unit}</Text>
+                            <TouchableOpacity
+                                style={styles.qtyBtn}
+                                onPress={(e) => {
+                                    e.stopPropagation?.();
+                                    setQuantity(Math.min(product.maxQuantity, quantity + 1));
+                                }}
+                            >
+                                <Text style={styles.qtyBtnText}>+</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.addBtn}
+                            onPress={(e) => {
+                                e.stopPropagation?.();
+                                onAddToCart(quantity);
+                                setQuantity(1); // Reset after adding
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <ShoppingBag size={16} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </TouchableOpacity>
@@ -128,39 +153,65 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     bottomRow: {
+        marginTop: 4,
+    },
+    priceStatsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
+        alignItems: 'center',
+    },
+    actionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 10,
+    },
+    quantityControl: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f5f5f0',
+        borderRadius: 8,
+        flex: 1,
+        justifyContent: 'space-between',
+        paddingHorizontal: 4,
+        marginRight: 8,
+        height: 38,
+    },
+    qtyBtn: {
+        width: 30,
+        height: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    qtyBtnText: {
+        fontSize: 16,
+        color: '#44403c',
+        fontWeight: '600',
+    },
+    qtyValue: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1c1917',
     },
     price: {
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: '800',
         color: '#16a34a',
-    },
-    unit: {
-        fontSize: 13,
-        fontWeight: '500',
-        color: '#a8a29e',
     },
     ratingRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 3,
-        marginTop: 2,
     },
     ratingText: {
         fontSize: 12,
         fontWeight: '600',
         color: '#78716c',
     },
-    reviewCount: {
-        fontSize: 11,
-        color: '#a8a29e',
-    },
     addBtn: {
-        width: 42,
-        height: 42,
-        borderRadius: 14,
+        width: 38,
+        height: 38,
+        borderRadius: 10,
         backgroundColor: '#16a34a',
         alignItems: 'center',
         justifyContent: 'center',
